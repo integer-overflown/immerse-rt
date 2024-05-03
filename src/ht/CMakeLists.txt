@@ -1,1 +1,1 @@
-add_subdirectory(core-motion)
+add_subdirectory(platform)
