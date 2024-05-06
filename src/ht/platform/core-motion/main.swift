@@ -9,6 +9,8 @@ enum AppError: Error {
 @main
 struct App {
     static func main() throws {
+        say_hello()
+
         let logger = Logger(subsystem: "com.github.immerse_rt", category: "ht_core_motion")
         let motionService = CMHeadphoneMotionManager()
 

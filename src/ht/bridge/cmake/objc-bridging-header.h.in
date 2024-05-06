@@ -1,0 +1,7 @@
+#ifndef IRT_OBJC_BRIDGING_HEADER
+#define IRT_OBJC_BRIDGING_HEADER
+
+#include "@PATH_PREFIX@/SwiftBridgeCore.h"
+#include "@PATH_PREFIX@/@TARGET_NAME@/@TARGET_NAME@.h"
+
+#endif /* IRT_OBJC_BRIDGING_HEADER */
