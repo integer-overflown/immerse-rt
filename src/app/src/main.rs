@@ -1,3 +1,6 @@
+use bridge::Greeter;
+
 fn main() {
-    bridge::say_hello();
+    let greeter = Greeter::new("App");
+    greeter.say_hello();
 }
