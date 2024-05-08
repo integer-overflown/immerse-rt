@@ -7,21 +7,20 @@ target_sources(irt_bridge INTERFACE
         generated/SwiftBridgeCore.swift
 )
 
-
 set(BRIDGING_HEADER_FILE_NAME objc-bridging-header.h)
 set(BRIDGING_HEADER_TEMPLATE_NAME ${BRIDGING_HEADER_FILE_NAME}.in)
 
-set(BRIDGING_HEADER_TEMPLATE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/${BRIDGING_HEADER_TEMPLATE_NAME}")
-set(BRIDGING_HEADER_FILE_PATH "${CMAKE_CURRENT_LIST_DIR}/generated/${BRIDGING_HEADER_FILE_NAME}")
+set(BRIDGING_HEADER_TEMPLATE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/${BRIDGING_HEADER_TEMPLATE_NAME}")
+set(BRIDGING_HEADER_FILE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/generated/${BRIDGING_HEADER_FILE_NAME}")
 
 # region Inlined variables (see the file at BRIDGING_HEADER_NAME)
-set(PATH_PREFIX ${CMAKE_CURRENT_LIST_DIR}/generated)
+set(PATH_PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/generated)
 set(TARGET_NAME ${BRIDGE_TARGET_NAME})
 # endregion
 
 configure_file(
         ${BRIDGING_HEADER_TEMPLATE_PATH}
-        ${BRIDGING_HEADER_PATH}
+        ${BRIDGING_HEADER_FILE_PATH}
         @ONLY
 )
 
@@ -31,21 +30,21 @@ configure_file(
 # and use the corresponding target dir.
 target_compile_options(irt_bridge INTERFACE
         -import-objc-header ${BRIDGING_HEADER_FILE_PATH}
-        -L ${CMAKE_CURRENT_LIST_DIR}/target/debug
+        -L ${CMAKE_CURRENT_SOURCE_DIR}/target/debug # TODO: try to use find_library
         -l${BRIDGE_TARGET_NAME}
 )
 
 add_custom_target(irt_make_bridge
         COMMAND cargo build
-        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 add_custom_command(
         OUTPUT
-        ${CMAKE_CURRENT_LIST_DIR}/generated/${BRIDGE_TARGET_NAME}/${BRIDGE_TARGET_NAME}.swift
-        ${CMAKE_CURRENT_LIST_DIR}/generated/${BRIDGE_TARGET_NAME}/${BRIDGE_TARGET_NAME}.h
-        ${CMAKE_CURRENT_LIST_DIR}/generated/SwiftBridgeCore.swift
-        ${CMAKE_CURRENT_LIST_DIR}/generated/SwiftBridgeCore.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/generated/${BRIDGE_TARGET_NAME}/${BRIDGE_TARGET_NAME}.swift
+        ${CMAKE_CURRENT_SOURCE_DIR}/generated/${BRIDGE_TARGET_NAME}/${BRIDGE_TARGET_NAME}.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/generated/SwiftBridgeCore.swift
+        ${CMAKE_CURRENT_SOURCE_DIR}/generated/SwiftBridgeCore.h
         DEPENDS src/lib.rs
         COMMAND irt_make_bridge
         COMMENT "Generating bridging files..."
