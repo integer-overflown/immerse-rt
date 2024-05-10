@@ -17,15 +17,15 @@ class CoreMotionApiImpl: NSObject, CMHeadphoneMotionManagerDelegate {
         motionService.delegate = self
     }
 
-    public func checkRequirements() throws {
+    public func startMotionUpdates() throws {
         try ensureServiceAvailability()
         try ensurePermissions()
-    }
 
-    public func startMotionUpdates() {
         logger.info("Starting motion updates")
+        logger.debug("isDeviceMotionAvailable: \(self.motionService.isDeviceMotionAvailable)")
+        logger.debug("isDeviceMotionActive: \(self.motionService.isDeviceMotionActive)")
 
-        motionService.startDeviceMotionUpdates(to: OperationQueue()) { [weak self] motion, error in
+        motionService.startDeviceMotionUpdates(to: OperationQueue(), withHandler: { [weak self] motion, error in
             guard let self else {
                 return
             }
@@ -38,14 +38,12 @@ class CoreMotionApiImpl: NSObject, CMHeadphoneMotionManagerDelegate {
             }
 
             guard let motion else {
+                logger.debug("No updated motion info")
                 return
             }
 
-            let attitude = motion.attitude
-            logger.debug("Pitch: \(attitude.pitch), yaw: \(attitude.yaw), roll: \(attitude.roll)")
-        }
-
-        logger.debug("Motion manager status: \(self.motionService.isDeviceMotionActive)")
+            onMotionUpdate(motion)
+        })
     }
 
     func stopMotionUpdates() {
@@ -55,10 +53,12 @@ class CoreMotionApiImpl: NSObject, CMHeadphoneMotionManagerDelegate {
 
     func headphoneMotionManagerDidConnect(_: CMHeadphoneMotionManager) {
         logger.info("Headphone manager has connected")
+        logger.debug("isDeviceMotionActive: \(self.motionService.isDeviceMotionActive)")
     }
 
     func headphoneMotionManagerDidDisconnect(_: CMHeadphoneMotionManager) {
         logger.info("Headphone manager has disconnected")
+        logger.debug("isDeviceMotionActive: \(self.motionService.isDeviceMotionActive)")
     }
 
     func ensureServiceAvailability() throws {
@@ -84,6 +84,11 @@ class CoreMotionApiImpl: NSObject, CMHeadphoneMotionManagerDelegate {
             logger.info("Motion data access permission is \(authStatus.rawValue): continuing")
         }
     }
+
+    func onMotionUpdate(_ motion: CMDeviceMotion) {
+        let attitude = motion.attitude
+        logger.debug("Pitch: \(attitude.pitch), yaw: \(attitude.yaw), roll: \(attitude.roll)")
+    }
 }
 
 @main
@@ -92,8 +97,7 @@ class App {
         let app = NSApplication.shared
         let api = CoreMotionApiImpl()
 
-        try api.checkRequirements()
-        api.startMotionUpdates()
+        try api.startMotionUpdates()
 
         app.run()
     }
