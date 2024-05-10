@@ -21,4 +21,8 @@ project(immerse_rt
         HOMEPAGE_URL ${IRT_REPO_URL}
 )
 
+option(IRT_AUTO_DOWNLOAD_SWIFT_BRIDGE "Automatically download swift-bridge binary; only affects macOS builds" ON)
+
+include(Dependencies)
+
 add_subdirectory(src)
