@@ -1,3 +1,5 @@
+include(ProjectInfo)
+
 set(SWIFT_BRIDGE_CLI_NAME "swift-bridge-cli")
 set(SWIFT_BRIDGE_CLI_VERSION "0.1.55")
 set(SWIFT_BRIDGE_CLI_VERSIONED_NAME ${SWIFT_BRIDGE_CLI_NAME}@${SWIFT_BRIDGE_CLI_VERSION})
@@ -12,7 +14,7 @@ Please install it manually using \"cargo install\" or enable auto-download optio
     message(STATUS "${SWIFT_BRIDGE_CLI_NAME} not found - downloading")
 
     execute_process(
-            COMMAND cargo install ${SWIFT_BRIDGE_CLI_VERSIONED_NAME}
+            COMMAND cargo install --git ${SWIFT_BRIDGE_REPO_URL} --branch ${SWIFT_BRIDGE_REPO_BRANCH} ${SWIFT_BRIDGE_CLI_VERSIONED_NAME}
             COMMAND_ECHO STDOUT
     )
 
