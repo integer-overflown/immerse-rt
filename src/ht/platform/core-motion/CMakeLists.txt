@@ -1,25 +1,57 @@
-enable_language(Swift)
-
-add_library(
-        ht_core_motion
-        STATIC
-        main.swift
+corrosion_import_crate(
+        MANIFEST_PATH Cargo.toml
+        IMPORTED_CRATES BRIDGE_TARGET_NAME
 )
 
-set_target_properties(ht_core_motion
-        PROPERTIES
-        MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_LIST_DIR}/config/Info.plist.in
+add_library(irt_bridge INTERFACE)
+
+target_sources(irt_bridge INTERFACE
+        generated/bridge/bridge.swift
+        generated/SwiftBridgeCore.swift
 )
 
-find_library(FRAMEWORK_CORE_MOTION "CoreMotion" REQUIRED)
+set(BRIDGING_HEADER_FILE_NAME objc-bridging-header.h)
+set(BRIDGING_HEADER_TEMPLATE_NAME ${BRIDGING_HEADER_FILE_NAME}.in)
 
-target_link_libraries(
-        ht_core_motion
-        PRIVATE
-        ${FRAMEWORK_CORE_MOTION}
-        irt_bridge
+set(BRIDGING_HEADER_TEMPLATE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/${BRIDGING_HEADER_TEMPLATE_NAME}")
+set(BRIDGING_HEADER_FILE_PATH "${CMAKE_CURRENT_LIST_DIR}/generated/${BRIDGING_HEADER_FILE_NAME}")
+
+# region Inlined variables (see the file at BRIDGING_HEADER_NAME)
+set(PATH_PREFIX ".")
+set(TARGET_NAME ${BRIDGE_TARGET_NAME})
+# endregion
+
+configure_file(
+        ${BRIDGING_HEADER_TEMPLATE_PATH}
+        ${BRIDGING_HEADER_FILE_PATH}
+        @ONLY
 )
 
-add_dependencies(ht_core_motion irt_make_bridge)
+# TODO(max-khm): figure out target location dynamically
+# Current logic is a stub and will break in non-debug builds:
+# we need to detect active cargo profile (or have a setting for this)
+# and use the corresponding target dir.
+target_compile_options(irt_bridge INTERFACE
+        -import-objc-header ${BRIDGING_HEADER_FILE_PATH}
+        -L ${CMAKE_CURRENT_LIST_DIR}/target/debug # TODO: try to use find_library
+        -l${BRIDGE_TARGET_NAME}
+)
 
-target_compile_options(ht_core_motion PRIVATE -parse-as-library)
+add_custom_target(irt_make_bridge
+        COMMAND rs::swift_bridge parse-bridges --output generated ${BRIDGE_TARGET_NAME} src/lib.rs
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+)
+
+add_custom_command(
+        OUTPUT
+        generated/${BRIDGE_TARGET_NAME}/${BRIDGE_TARGET_NAME}.swift
+        generated/${BRIDGE_TARGET_NAME}/${BRIDGE_TARGET_NAME}.h
+        generated/SwiftBridgeCore.swift
+        generated/SwiftBridgeCore.h
+        DEPENDS src/lib.rs
+        COMMAND irt_make_bridge
+        COMMENT "Generating bridging files..."
+        VERBATIM
+)
+
+add_subdirectory(swift)
