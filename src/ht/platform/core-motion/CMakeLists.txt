@@ -1,8 +1,8 @@
 enable_language(Swift)
 
-add_executable(
+add_library(
         ht_core_motion
-        MACOSX_BUNDLE
+        STATIC
         main.swift
 )
 

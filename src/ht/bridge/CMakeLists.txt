@@ -1,4 +1,7 @@
-set(BRIDGE_TARGET_NAME bridge)
+corrosion_import_crate(
+        MANIFEST_PATH Cargo.toml
+        IMPORTED_CRATES BRIDGE_TARGET_NAME
+)
 
 add_library(irt_bridge INTERFACE)
 
@@ -35,7 +38,7 @@ target_compile_options(irt_bridge INTERFACE
 )
 
 add_custom_target(irt_make_bridge
-        COMMAND cargo build
+        COMMAND rs::swift_bridge parse-bridges --output ${CMAKE_CURRENT_LIST_DIR}/generated ${BRIDGE_TARGET_NAME} src/lib.rs
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 

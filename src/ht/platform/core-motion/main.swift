@@ -2,14 +2,9 @@ import AppKit
 import CoreMotion
 import os
 
-enum AppError: Error {
-    case ServiceNotAvailable
-    case PermissionDenied
-}
-
 let logger = Logger(subsystem: "com.github.immerse_rt", category: "ht_core_motion")
 
-class CoreMotionApiImpl: NSObject, CMHeadphoneMotionManagerDelegate {
+class CoreMotionHeadTracker: NSObject, CMHeadphoneMotionManagerDelegate {
     let motionService = CMHeadphoneMotionManager()
 
     override init() {
@@ -17,9 +12,14 @@ class CoreMotionApiImpl: NSObject, CMHeadphoneMotionManagerDelegate {
         motionService.delegate = self
     }
 
-    public func startMotionUpdates() throws {
-        try ensureServiceAvailability()
-        try ensurePermissions()
+    public func startMotionUpdates() -> SwiftResult {
+        guard ensureServiceAvailability() else {
+            return SwiftResult.Failure(ApiError.NotAvailable)
+        }
+
+        guard ensurePermissions() else {
+            return SwiftResult.Failure(ApiError.PermissionDenied)
+        }
 
         logger.info("Starting motion updates")
         logger.debug("isDeviceMotionAvailable: \(self.motionService.isDeviceMotionAvailable)")
@@ -32,9 +32,8 @@ class CoreMotionApiImpl: NSObject, CMHeadphoneMotionManagerDelegate {
 
             guard error == nil else {
                 logger.error("Error received during receiving motion updates: \(error)")
-                stopMotionUpdates()
-                // TODO(max-khm): propagate error on the higher level
-                return
+                let _ = stopMotionUpdates()
+                return // TODO(max-khm): propagate error on the higher level
             }
 
             guard let motion else {
@@ -44,11 +43,14 @@ class CoreMotionApiImpl: NSObject, CMHeadphoneMotionManagerDelegate {
 
             onMotionUpdate(motion)
         })
+
+        return SwiftResult.Success
     }
 
-    func stopMotionUpdates() {
+    func stopMotionUpdates() -> SwiftResult {
         logger.info("Stopping motion updates")
         motionService.stopDeviceMotionUpdates()
+        return SwiftResult.Success
     }
 
     func headphoneMotionManagerDidConnect(_: CMHeadphoneMotionManager) {
@@ -61,44 +63,29 @@ class CoreMotionApiImpl: NSObject, CMHeadphoneMotionManagerDelegate {
         logger.debug("isDeviceMotionActive: \(self.motionService.isDeviceMotionActive)")
     }
 
-    func ensureServiceAvailability() throws {
+    func ensureServiceAvailability() -> Bool {
         logger.debug("isDeviceMotionAvailable: \(self.motionService.isDeviceMotionAvailable)")
-
-        guard motionService.isDeviceMotionAvailable else {
-            logger.error("Device motion service is not available")
-            throw AppError.ServiceNotAvailable
-        }
+        return motionService.isDeviceMotionAvailable
     }
 
-    func ensurePermissions() throws {
+    func ensurePermissions() -> Bool {
         let authStatus = CMHeadphoneMotionManager.authorizationStatus()
 
         switch authStatus {
         case CMAuthorizationStatus.denied:
             logger.error("Motion data access has been denied")
-            throw AppError.PermissionDenied
+            return false
         case CMAuthorizationStatus.restricted:
             logger.error("Motion data access is restricted")
-            throw AppError.PermissionDenied
+            return false
         default:
             logger.info("Motion data access permission is \(authStatus.rawValue): continuing")
+            return true
         }
     }
 
     func onMotionUpdate(_ motion: CMDeviceMotion) {
         let attitude = motion.attitude
         logger.debug("Pitch: \(attitude.pitch), yaw: \(attitude.yaw), roll: \(attitude.roll)")
-    }
-}
-
-@main
-class App {
-    static func main() throws {
-        let app = NSApplication.shared
-        let api = CoreMotionApiImpl()
-
-        try api.startMotionUpdates()
-
-        app.run()
     }
 }

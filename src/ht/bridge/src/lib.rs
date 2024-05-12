@@ -1,26 +1,25 @@
 #[swift_bridge::bridge]
 mod ffi {
-    extern "Rust" {
-        type Greeter;
+    enum ApiError {
+        NotAvailable,
+        PermissionDenied,
+    }
+
+    enum SwiftResult {
+        Success,
+        Failure(ApiError),
+    }
+
+    extern "Swift" {
+        type CoreMotionHeadTracker;
 
         #[swift_bridge(init)]
-        fn new(name: &str) -> Greeter;
+        fn new() -> CoreMotionHeadTracker;
 
-        #[swift_bridge(swift_name = "sayHello")]
-        fn say_hello(&self);
-    }
-}
+        #[swift_bridge(swift_name = "startMotionUpdates")]
+        fn start_motion_updates(&self) -> SwiftResult;
 
-pub struct Greeter {
-    name: String,
-}
-
-impl Greeter {
-    pub fn new(name: &str) -> Self {
-        Self { name: name.into() }
-    }
-
-    pub fn say_hello(&self) {
-        println!("Hello from Rust, {}!", self.name);
+        #[swift_bridge(swift_name = "stopMotionUpdates")]
+        fn stop_motion_updates(&self) -> SwiftResult;
     }
 }

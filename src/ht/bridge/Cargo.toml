@@ -7,7 +7,7 @@ edition = "2021"
 crate-type = ["staticlib", "rlib"]
 
 [build-dependencies]
-swift-bridge-build = "0.1"
+swift-bridge-build = "0.1.55"
 
 [dependencies]
-swift-bridge = "0.1"
+swift-bridge = "0.1.55"
