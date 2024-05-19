@@ -1,0 +1,2 @@
+[build]
+rustflags = ["-L native=@SWIFT_LIB_LOCATION@ -l static=@SWIFT_LIB_NAME@"]

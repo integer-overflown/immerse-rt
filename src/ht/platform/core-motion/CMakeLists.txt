@@ -55,3 +55,11 @@ add_custom_command(
 )
 
 add_subdirectory(swift)
+
+file(GENERATE
+        OUTPUT ${CMAKE_CURRENT_LIST_DIR}/.config/config.toml
+        CONTENT [[
+[build]
+rustflags = ["-L native=$<TARGET_FILE_DIR:ht_core_motion> -l static=$<TARGET_FILE_BASE_NAME:ht_core_motion>"]
+        ]]
+)
