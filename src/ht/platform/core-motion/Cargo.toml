@@ -11,3 +11,4 @@ swift-bridge-build = "0.1.55"
 
 [dependencies]
 swift-bridge = "0.1.55"
+irt-ht-interface = { path = "../../interface" }

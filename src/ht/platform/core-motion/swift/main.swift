@@ -12,13 +12,13 @@ class CoreMotionHeadTracker: NSObject, CMHeadphoneMotionManagerDelegate {
         motionService.delegate = self
     }
 
-    public func startMotionUpdates() -> SwiftResult {
+    func startMotionUpdates(dest: MotionDataDestination) -> StartResult {
         guard ensureServiceAvailability() else {
-            return SwiftResult.Failure(ApiError.NotAvailable)
+            return StartResult.Failure(HtError.Api(ApiError.NotAvailable))
         }
 
         guard ensurePermissions() else {
-            return SwiftResult.Failure(ApiError.PermissionDenied)
+            return StartResult.Failure(HtError.Api(ApiError.PermissionDenied))
         }
 
         logger.info("Starting motion updates")
@@ -41,16 +41,20 @@ class CoreMotionHeadTracker: NSObject, CMHeadphoneMotionManagerDelegate {
                 return
             }
 
-            onMotionUpdate(motion)
+            onMotionUpdate(motion, destination: dest)
         })
 
-        return SwiftResult.Success
+        return StartResult.Success
     }
 
-    func stopMotionUpdates() -> SwiftResult {
+    func stopMotionUpdates() -> StopResult {
+        doStopMotionUpdates()
+        return StopResult.Success
+    }
+
+    func doStopMotionUpdates() {
         logger.info("Stopping motion updates")
         motionService.stopDeviceMotionUpdates()
-        return SwiftResult.Success
     }
 
     func headphoneMotionManagerDidConnect(_: CMHeadphoneMotionManager) {
@@ -84,8 +88,13 @@ class CoreMotionHeadTracker: NSObject, CMHeadphoneMotionManagerDelegate {
         }
     }
 
-    func onMotionUpdate(_ motion: CMDeviceMotion) {
-        let attitude = motion.attitude
-        logger.debug("Pitch: \(attitude.pitch), yaw: \(attitude.yaw), roll: \(attitude.roll)")
+    func onMotionUpdate(_ motion: CMDeviceMotion, destination: MotionDataDestination) {
+        let q = motion.attitude.quaternion
+        logger.debug("Orientation: w: \(q.w), x: \(q.x), y: \(q.y), z: \(q.z)")
+
+        if !destination.push_quaternion(Quaternion(w: q.w, x: q.x, y: q.y, z: q.z)) {
+            logger.debug("Caller is no longer interested in updates - stopping")
+            doStopMotionUpdates()
+        }
     }
 }
