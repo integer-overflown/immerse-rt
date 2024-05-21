@@ -4,6 +4,7 @@
 //! Any current or future implementation of head-tracking feature shall comply with the traits
 //! described in this module.
 
+pub use irt_space::{Orientation, Quaternion, UnitQuaternion};
 use std::sync::mpsc::Receiver;
 
 /// Unknown, unexpected or otherwise unclassified error.
@@ -63,18 +64,6 @@ pub enum Error {
     #[error(transparent)]
     Other(#[from] UnknownError),
 }
-
-/// Type alias to the actual quaternion implementation.
-/// Represents a generic, non-normalized quaternion.
-pub type Quaternion = nalgebra::Quaternion<f64>;
-
-/// Type alias to the actual unit quaternion implemenation.
-/// Represents a normalized quaternion,
-/// which can be used to represent orientation in 3D space.
-pub type UnitQuaternion = nalgebra::Unit<Quaternion>;
-
-/// Type alias to a data type that represents orientation in 3D space.
-pub type Orientation = UnitQuaternion;
 
 /// Head tracking API implementation
 ///
