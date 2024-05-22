@@ -208,3 +208,5 @@ fastlane/test_output
 iOSInjectionProject/
 
 cmake-build-debug/
+
+.idea/
