@@ -5,3 +5,7 @@ edition = "2021"
 
 [dependencies]
 irt-space = { path = "../space" }
+nalgebra = { workspace = true }
+
+[dev-dependencies]
+approx = "0.5.1"

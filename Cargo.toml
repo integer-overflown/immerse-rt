@@ -11,3 +11,6 @@ members = [
 exclude = [
     "crates/ht/platform/core-motion"
 ]
+
+[workspace.dependencies]
+nalgebra = "0.32.5"
