@@ -1,0 +1,13 @@
+[workspace]
+resolver = "2"
+
+members = [
+    "src/app",
+    "src/ht/interface",
+    "src/space",
+    "src/spatializer",
+]
+
+exclude = [
+    "src/ht/platform/core-motion"
+]
