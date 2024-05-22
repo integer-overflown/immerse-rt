@@ -1,5 +1,5 @@
 [package]
-name = "irt-bridge"
+name = "irt-ht-core-motion"
 version = "0.1.0"
 edition = "2021"
 
