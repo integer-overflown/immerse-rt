@@ -4,8 +4,9 @@
 //! Any current or future implementation of head-tracking feature shall comply with the traits
 //! described in this module.
 
-pub use irt_space::{Orientation, Quaternion, UnitQuaternion};
 use std::sync::mpsc::Receiver;
+
+pub use irt_space::{Orientation, Quaternion, UnitQuaternion};
 
 /// Unknown, unexpected or otherwise unclassified error.
 ///

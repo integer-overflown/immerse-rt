@@ -2,12 +2,12 @@
 resolver = "2"
 
 members = [
-    "src/app",
-    "src/ht/interface",
-    "src/space",
-    "src/spatializer",
+    "crates/app",
+    "crates/ht/interface",
+    "crates/space",
+    "crates/spatializer",
 ]
 
 exclude = [
-    "src/ht/platform/core-motion"
+    "crates/ht/platform/core-motion"
 ]

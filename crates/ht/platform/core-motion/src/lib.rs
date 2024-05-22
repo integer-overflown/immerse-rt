@@ -1,6 +1,7 @@
-use irt_ht_interface as ht;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
+
+use irt_ht_interface as ht;
 
 #[swift_bridge::bridge]
 mod ffi {
