@@ -4,7 +4,7 @@ use approx::assert_relative_eq;
 use na::{point, Vector3};
 use nalgebra as na;
 
-use irt_space::Orientation;
+use irt_space::{Orientation, Point3};
 use irt_spatializer::{Listener, Scene, Source};
 
 #[test]
@@ -50,4 +50,35 @@ fn test_listener_perceived_scene() {
         listener.perceived_scene(&scene),
         scene.relative_to(orientation)
     );
+}
+
+#[test]
+fn test_listener_with_no_location_defaults_to_origin() {
+    let listener = Listener::new(Orientation::from_axis_angle(&Vector3::y_axis(), 0.0));
+    assert_eq!(listener.location(), Point3::origin());
+}
+
+#[test]
+fn test_listener_with_location_perceived_scene() {
+    let position = point![1.0, 2.0, 1.0];
+    let listener = Listener::new_with_location(
+        position,
+        Orientation::from_axis_angle(&Vector3::y_axis(), 0.0),
+    );
+
+    assert_eq!(listener.location(), position);
+
+    let sources = [point![2.0, -1.0, 2.0], point![4.0, 2.0, -4.0]];
+    let scene = Scene::new(sources.map(Source::new).into());
+
+    let perceived_scene = listener.perceived_scene(&scene);
+
+    let offset_by_position = perceived_scene
+        .sources()
+        .iter()
+        .zip(sources.iter())
+        .map(|(left, right)| right - left.location())
+        .all(|val| val == position.coords);
+
+    assert!(offset_by_position);
 }
