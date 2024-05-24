@@ -16,6 +16,10 @@ pub struct Listener {
     orientation: Orientation,
 }
 
+pub trait Renderer {
+    fn set_scene(&self, scene: &Scene);
+}
+
 impl Source {
     pub fn new(position: Point3) -> Self {
         Self { position }
@@ -26,8 +30,8 @@ impl Source {
         Self::new(position)
     }
 
-    pub fn location(&self) -> &Point3 {
-        &self.position
+    pub fn location(&self) -> Point3 {
+        self.position
     }
 }
 
@@ -47,6 +51,7 @@ impl Listener {
     }
 
     pub fn perceived_scene(&self, scene: &Scene) -> Scene {
+        // TODO(max-khm): This could be potentially optimized with SIMD calculations
         let sources = scene
             .sources
             .iter()

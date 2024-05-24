@@ -1,0 +1,9 @@
+[package]
+name = "irt-gst-renderer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gst = { package = "gstreamer", version = "0.22.5" }
+thiserror = "1.0.61"
+irt-spatial = { path = "../../../libs/spatial" }
