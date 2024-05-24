@@ -1,4 +1,4 @@
-use irt_space::{Orientation, Point3};
+use irt_lin_alg::{Orientation, Point3};
 
 #[derive(Debug, PartialEq)]
 pub struct Scene {

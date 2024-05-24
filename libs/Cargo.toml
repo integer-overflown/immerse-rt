@@ -3,8 +3,8 @@ resolver = "2"
 
 members = [
     "ht",
-    "space",
-    "spatializer",
+    "lin-alg",
+    "spatial",
 ]
 
 [workspace.dependencies]

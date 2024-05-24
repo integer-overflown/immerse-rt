@@ -1,10 +1,10 @@
 [package]
-name = "irt-spatializer"
+name = "irt-spatial"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-irt-space = { path = "../space" }
+irt-lin-alg = { path = "../lin-alg" }
 nalgebra = { workspace = true }
 
 [dev-dependencies]

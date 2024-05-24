@@ -6,7 +6,7 @@
 
 use std::sync::mpsc::Receiver;
 
-pub use irt_space::{Orientation, Quaternion, UnitQuaternion};
+pub use irt_lin_alg::{Orientation, Quaternion, UnitQuaternion};
 
 /// Unknown, unexpected or otherwise unclassified error.
 ///

@@ -4,7 +4,7 @@ use approx::assert_relative_eq;
 use na::{point, Vector3};
 use nalgebra as na;
 
-use irt_space::{Orientation, Point3};
+use irt_lin_alg::{Orientation, Point3};
 use irt_spatializer::{Listener, Scene, Source};
 
 #[test]
