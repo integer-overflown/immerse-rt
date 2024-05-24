@@ -5,7 +5,7 @@ use na::{point, Vector3};
 use nalgebra as na;
 
 use irt_lin_alg::{Orientation, Point3};
-use irt_spatializer::{Listener, Scene, Source};
+use irt_spatial::{Listener, Scene, Source};
 
 #[test]
 fn test_point_rotation() {

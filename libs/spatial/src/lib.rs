@@ -12,7 +12,7 @@ pub struct Source {
 
 #[derive(Debug)]
 pub struct Listener {
-    location: Option<Point3>,
+    location: Point3,
     orientation: Orientation,
 }
 
@@ -34,36 +34,31 @@ impl Source {
 impl Listener {
     pub fn new(orientation: Orientation) -> Self {
         Self {
-            location: None,
+            location: Point3::origin(),
             orientation,
         }
     }
 
     pub fn new_with_location(location: Point3, orientation: Orientation) -> Self {
         Self {
-            location: Some(location),
+            location,
             orientation,
         }
     }
 
     pub fn perceived_scene(&self, scene: &Scene) -> Scene {
-        match self.location {
-            Some(location) => {
-                let sources = scene
-                    .sources
-                    .iter()
-                    .map(|source| source.position - location)
-                    .map(Point3::from)
-                    .map(Source::new)
-                    .collect();
-                Scene::new(sources).relative_to(self.orientation)
-            }
-            None => scene.relative_to(self.orientation),
-        }
+        let sources = scene
+            .sources
+            .iter()
+            .map(|source| source.position - self.location)
+            .map(Point3::from)
+            .map(Source::new)
+            .collect();
+        Scene::new(sources).relative_to(self.orientation)
     }
 
     pub fn location(&self) -> Point3 {
-        self.location.unwrap_or(Point3::origin())
+        self.location
     }
 }
 
