@@ -1,0 +1,11 @@
+[workspace]
+resolver = "2"
+
+members = [
+    "ht",
+    "space",
+    "spatializer",
+]
+
+[workspace.dependencies]
+nalgebra = "0.32.5"

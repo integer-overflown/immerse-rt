@@ -25,4 +25,4 @@ option(IRT_AUTO_DOWNLOAD_SWIFT_BRIDGE "Automatically download swift-bridge binar
 
 include(Dependencies)
 
-add_subdirectory(crates)
+add_subdirectory(impls/ht)
