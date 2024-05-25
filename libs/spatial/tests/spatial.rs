@@ -1,9 +1,9 @@
-use std::f64::consts::*;
+use std::f32::consts::*;
 
-use approx::assert_relative_eq;
 use na::{point, Vector3};
 use nalgebra as na;
 
+use approx::assert_relative_eq;
 use irt_lin_alg::{Orientation, Point3};
 use irt_spatial::{Listener, Scene, Source};
 
@@ -15,7 +15,7 @@ fn test_point_rotation() {
 
     let perceived_source = source.perceived_from(&orientation);
 
-    assert_relative_eq!(*perceived_source.location(), orientation * point);
+    assert_relative_eq!(perceived_source.location(), orientation * point);
 }
 
 #[test]

@@ -113,7 +113,12 @@ impl ht::HeadTracker for HeadTracker {
 // region FFI->interface conversions
 impl From<ffi::Quaternion> for ht::UnitQuaternion {
     fn from(value: ffi::Quaternion) -> Self {
-        let q = ht::Quaternion::new(value.w, value.x, value.y, value.z);
+        let q = ht::Quaternion::new(
+            value.w as f32,
+            value.x as f32,
+            value.y as f32,
+            value.z as f32,
+        );
         Self::new_normalize(q)
     }
 }

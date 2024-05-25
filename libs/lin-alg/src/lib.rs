@@ -6,7 +6,7 @@
 use nalgebra as na;
 
 /// Generic, non-normalized quaternion.
-pub type Quaternion = na::Quaternion<f64>;
+pub type Quaternion = na::Quaternion<f32>;
 
 /// Normalized quaternion, which can be used to represent orientation in 3D space.
 pub type UnitQuaternion = na::Unit<Quaternion>;
@@ -15,4 +15,4 @@ pub type UnitQuaternion = na::Unit<Quaternion>;
 pub type Orientation = UnitQuaternion;
 
 /// Point in 3D space.
-pub type Point3 = na::Point3<f64>;
+pub type Point3 = na::Point3<f32>;
