@@ -72,7 +72,7 @@ impl ToValueArray for Scene {
                 .field("x", location.x)
                 .field("y", location.y)
                 .field("z", location.z)
-                .field("distance-gain", 1.0)
+                .field("distance-gain", source.distance_gain())
                 .build()
                 .to_send_value()
         }))
