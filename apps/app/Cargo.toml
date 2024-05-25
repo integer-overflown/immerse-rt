@@ -3,6 +3,8 @@ name = "irt-app"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
+gst = { package = "gstreamer", version = "0.22.5" }
+anyhow = "1.0.86"
+irt-gst-renderer = { path = "../../impls/renderers/gst" }
+irt-spatial = { path = "../../libs/spatial" }
