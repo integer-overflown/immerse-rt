@@ -1,4 +1,4 @@
-pub use irt_lin_alg::{Orientation, Point3};
+pub use irt_lin_alg::{na, Orientation, Point3};
 
 #[derive(Debug, PartialEq)]
 pub struct Scene {
@@ -27,7 +27,13 @@ pub struct Listener {
 }
 
 pub trait Renderer {
-    fn set_scene(&self, scene: &Scene);
+    fn render_scene(&mut self, scene: &Scene);
+}
+
+pub struct Soundscape<T: Renderer> {
+    listener: Listener,
+    scene: Scene,
+    renderer: T,
 }
 
 pub struct SourceBuilder {
@@ -133,5 +139,50 @@ impl Scene {
 impl FromIterator<Source> for Scene {
     fn from_iter<T: IntoIterator<Item = Source>>(iter: T) -> Self {
         Self::new(iter.into_iter().collect())
+    }
+}
+
+impl From<Orientation> for Listener {
+    fn from(value: Orientation) -> Self {
+        Self::new(value)
+    }
+}
+
+impl From<(Point3, Orientation)> for Listener {
+    fn from((location, orientation): (Point3, Orientation)) -> Self {
+        Self::new_with_location(location, orientation)
+    }
+}
+
+impl<T: Renderer> Soundscape<T> {
+    pub fn new(initial_scene: Scene, initial_listener: Listener, renderer: T) -> Soundscape<T> {
+        let mut instance = Self {
+            listener: initial_listener,
+            scene: initial_scene,
+            renderer,
+        };
+
+        instance.update_scene();
+
+        instance
+    }
+
+    pub fn set_listener(&mut self, listener: Listener) {
+        self.listener = listener;
+        self.update_scene();
+    }
+
+    pub fn set_scene(&mut self, scene: Scene) {
+        self.scene = scene;
+        self.update_scene();
+    }
+
+    fn update_scene(&mut self) {
+        let new_scene = self.listener.perceived_scene(&self.scene);
+        self.renderer.render_scene(&new_scene);
+    }
+
+    pub fn renderer(&self) -> &T {
+        &self.renderer
     }
 }

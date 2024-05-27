@@ -3,11 +3,11 @@ use std::env::args;
 use anyhow::anyhow;
 use gst::glib;
 use gst::prelude::*;
-
 use irt_gst_renderer::HrtfRenderer;
-use irt_spatial::{Renderer, Scene, Source};
 
-fn create_pipeline(file_path: &str, scene: &Scene) -> anyhow::Result<gst::Pipeline> {
+use irt_spatial::{na, Orientation, Scene, Soundscape, Source};
+
+fn create_pipeline(file_path: &str, scene: Scene) -> anyhow::Result<gst::Pipeline> {
     let pipeline = gst::Pipeline::new();
     let source = gst::ElementFactory::make("audiotestsrc")
         .property("is-live", true)
@@ -24,12 +24,20 @@ fn create_pipeline(file_path: &str, scene: &Scene) -> anyhow::Result<gst::Pipeli
         .build()
         .unwrap();
     let queue = gst::ElementFactory::make("queue").build().unwrap();
-    let renderer = HrtfRenderer::new_with_file(file_path)?;
+    let soundscape = Soundscape::new(
+        scene,
+        Orientation::from_axis_angle(&na::Vector3::z_axis(), 0.0).into(),
+        HrtfRenderer::new_with_file(file_path)?,
+    );
     let sink = gst::ElementFactory::make("autoaudiosink").build().unwrap();
 
-    renderer.set_scene(scene);
-
-    let elements = [&source, &queue, &caps_filter, &renderer.element(), &sink];
+    let elements = [
+        &source,
+        &queue,
+        &caps_filter,
+        &soundscape.renderer().element(),
+        &sink,
+    ];
 
     pipeline.add_many(elements)?;
     gst::Element::link_many(elements)?;
@@ -52,7 +60,7 @@ fn main() -> anyhow::Result<()> {
         .build()];
 
     let scene = Scene::new(sources);
-    let pipeline = create_pipeline(&hrir_file, &scene)?;
+    let pipeline = create_pipeline(&hrir_file, scene)?;
 
     pipeline.set_state(gst::State::Playing)?;
 

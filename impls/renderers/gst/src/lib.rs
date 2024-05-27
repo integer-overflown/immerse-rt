@@ -80,7 +80,7 @@ impl ToValueArray for Scene {
 }
 
 impl Renderer for HrtfRenderer {
-    fn set_scene(&self, scene: &Scene) {
+    fn render_scene(&mut self, scene: &Scene) {
         self.element
             .set_property("spatial-objects", scene.to_value_array());
     }

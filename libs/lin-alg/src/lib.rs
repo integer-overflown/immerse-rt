@@ -3,7 +3,7 @@
 //! This module contains various useful definitions that are used for operations on 3D space.
 //! Most definitions are simply aliases to their implementation in `nalgebra` crate.
 
-use nalgebra as na;
+pub use nalgebra as na;
 
 /// Generic, non-normalized quaternion.
 pub type Quaternion = na::Quaternion<f32>;
