@@ -1,10 +1,10 @@
 use std::f32::consts::*;
 
+use approx::assert_relative_eq;
 use na::{point, Vector3};
 use nalgebra as na;
 
-use approx::assert_relative_eq;
-use irt_lin_alg::{Orientation, Point3};
+use irt_lin_alg::Orientation;
 use irt_spatial::{Listener, Scene, Source};
 
 #[test]
@@ -38,6 +38,7 @@ fn test_scene_rotation() {
 #[test]
 fn test_listener_perceived_scene() {
     let orientation = Orientation::from_axis_angle(&Vector3::z_axis(), -FRAC_PI_2);
+    let reverse = Orientation::from_axis_angle(&Vector3::z_axis(), FRAC_PI_2);
     let listener = Listener::new(orientation);
 
     let scene = Scene::new(vec![
@@ -48,14 +49,8 @@ fn test_listener_perceived_scene() {
 
     assert_eq!(
         listener.perceived_scene(&scene),
-        scene.relative_to(orientation)
+        scene.relative_to(reverse)
     );
-}
-
-#[test]
-fn test_listener_with_no_location_defaults_to_origin() {
-    let listener = Listener::new(Orientation::from_axis_angle(&Vector3::y_axis(), 0.0));
-    assert_eq!(listener.location(), Point3::origin());
 }
 
 #[test]

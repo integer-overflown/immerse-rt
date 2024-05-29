@@ -108,7 +108,7 @@ impl Listener {
             .map(Point3::from)
             .map(Source::new)
             .collect();
-        Scene::new(sources).relative_to(self.orientation)
+        Scene::new(sources).relative_to(self.orientation.inverse())
     }
 
     pub fn location(&self) -> Point3 {
@@ -172,11 +172,6 @@ impl<T: Renderer> Soundscape<T> {
         self.update_scene();
     }
 
-    pub fn set_scene(&mut self, scene: Scene) {
-        self.scene = scene;
-        self.update_scene();
-    }
-
     fn update_scene(&mut self) {
         let new_scene = self.listener.perceived_scene(&self.scene);
         self.renderer.render_scene(&new_scene);
@@ -184,5 +179,35 @@ impl<T: Renderer> Soundscape<T> {
 
     pub fn renderer(&self) -> &T {
         &self.renderer
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::f32::consts::*;
+
+    use nalgebra::{point, Vector3};
+
+    use super::*;
+
+    #[test]
+    fn test_listener_perceived_scene_rotation() {
+        let point = point![-2.0, -1.0, 4.0];
+        let orientation = Orientation::from_axis_angle(&Vector3::y_axis(), FRAC_PI_2);
+
+        let expected = orientation.inverse() * point;
+
+        let scene = Scene::new(vec![Source::new(point)]);
+        let listener = Listener::new(orientation);
+
+        let perceived = listener.perceived_scene(&scene);
+
+        assert_eq!(perceived.sources().first(), Some(&Source::new(expected)));
+    }
+
+    #[test]
+    fn test_listener_with_no_location_defaults_to_origin() {
+        let listener = Listener::new(Orientation::from_axis_angle(&Vector3::y_axis(), 0.0));
+        assert_eq!(listener.location(), Point3::origin());
     }
 }

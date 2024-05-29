@@ -1,4 +1,5 @@
 use std::env::args;
+use std::time::Duration;
 
 use anyhow::anyhow;
 use gst::glib;
@@ -6,11 +7,13 @@ use gst::prelude::*;
 use irt_gst_renderer::HrtfRenderer;
 
 use irt_spatial::{na, Orientation, Scene, Soundscape, Source};
+use irt_spatial::na::Vector3;
 
-fn create_pipeline(file_path: &str, scene: Scene) -> anyhow::Result<gst::Pipeline> {
+fn create_pipeline(file_path: &str, scene: Scene) -> anyhow::Result<(gst::Pipeline, Soundscape<HrtfRenderer>)> {
     let pipeline = gst::Pipeline::new();
     let source = gst::ElementFactory::make("audiotestsrc")
         .property("is-live", true)
+        .property_from_str("wave", "sine")
         .build()
         .unwrap();
     let caps_filter = gst::ElementFactory::make("capsfilter")
@@ -42,7 +45,26 @@ fn create_pipeline(file_path: &str, scene: Scene) -> anyhow::Result<gst::Pipelin
     pipeline.add_many(elements)?;
     gst::Element::link_many(elements)?;
 
-    Ok(pipeline)
+    Ok((pipeline, soundscape))
+}
+
+fn rotations() -> Vec<Orientation> {
+    let angle = std::f32::consts::FRAC_PI_2;
+
+    let steps = 12;
+
+    let right_angles: Vec<f32> = (1..=steps).map(|i| -angle * i as f32 / steps as f32).collect();
+    let left_angles: Vec<f32> = (1..=steps).map(|i| angle * i as f32 / steps as f32).collect();
+
+    let mut angles = Vec::with_capacity(steps * 4 + 1);
+
+    angles.extend_from_slice(&right_angles);
+    angles.extend(right_angles.iter().cloned().rev().skip(1));
+    angles.extend(&left_angles);
+    angles.extend(left_angles.iter().cloned().rev().skip(1));
+    angles.push(0f32);
+
+    angles.into_iter().map(|angle| Orientation::from_axis_angle(&Vector3::y_axis(), angle)).collect()
 }
 
 fn main() -> anyhow::Result<()> {
@@ -60,9 +82,21 @@ fn main() -> anyhow::Result<()> {
         .build()];
 
     let scene = Scene::new(sources);
-    let pipeline = create_pipeline(&hrir_file, scene)?;
+    let (pipeline, mut soundscape) = create_pipeline(&hrir_file, scene)?;
 
     pipeline.set_state(gst::State::Playing)?;
+
+    // Wait for state change to finish
+    let _ = pipeline.state(None);
+
+    let rotations = rotations();
+    let mut i = 1usize;
+
+    glib::timeout_add(Duration::from_millis(100), move || {
+        soundscape.set_listener(rotations[i].into());
+        i = i.wrapping_add(1) % rotations.len();
+        glib::ControlFlow::Continue
+    });
 
     main_loop.run();
     Ok(())
