@@ -5,7 +5,6 @@ use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
 };
 
-#[derive(Eq, PartialEq)]
 pub enum PeerRole {
     Publisher,
     Subscriber,
@@ -13,11 +12,11 @@ pub enum PeerRole {
 
 impl PeerRole {
     pub fn can_publish(&self) -> bool {
-        *self == PeerRole::Publisher
+        matches!(self, PeerRole::Publisher)
     }
 
     pub fn can_subscribe(&self) -> bool {
-        *self == PeerRole::Subscriber
+        matches!(self, PeerRole::Subscriber)
     }
 
     fn expected_value_message() -> &'static str {
