@@ -5,9 +5,9 @@ use livekit_api::access_token;
 use tracing::{error, info};
 
 use app::AppState;
+use app_protocol::token;
 
 mod app;
-mod payload;
 
 #[tokio::main]
 async fn main() {
@@ -29,8 +29,8 @@ async fn main() {
 #[debug_handler]
 async fn create_token(
     State(state): State<AppState>,
-    Json(req): Json<payload::TokenRequest>,
-) -> Result<Json<payload::TokenResponse>, http::StatusCode> {
+    Json(req): Json<token::TokenRequest>,
+) -> Result<Json<token::TokenResponse>, http::StatusCode> {
     let token = access_token::AccessToken::with_api_key(state.api_key(), state.api_secret())
         .with_identity(&req.identity)
         .with_name(req.name.as_ref().unwrap_or(&req.identity))
@@ -47,5 +47,5 @@ async fn create_token(
             http::StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    Ok(Json(payload::TokenResponse { token }))
+    Ok(Json(token::TokenResponse { token }))
 }
