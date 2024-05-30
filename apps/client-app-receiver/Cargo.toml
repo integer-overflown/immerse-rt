@@ -1,0 +1,10 @@
+[package]
+name = "client-app-receiver"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gst = { package = "gstreamer", version = "0.22.5" }
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+anyhow = "1.0.86"
