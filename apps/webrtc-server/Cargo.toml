@@ -1,0 +1,13 @@
+[package]
+name = "webrtc-server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+livekit-api = "0.3.2"
+axum = { version = "0.7.5", features = ["macros"] }
+serde = { version = "1.0.203", features = ["derive"] }
+serde_json = "1.0.117"
+tokio = "1.37.0"
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
