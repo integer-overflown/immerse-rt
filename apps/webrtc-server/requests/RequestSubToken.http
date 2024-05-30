@@ -1,0 +1,9 @@
+GET /request-token
+Host: 0.0.0.0:3000
+Content-Type: application/json
+
+{
+  "identity": "example-subscriber",
+  "roomId": "room#1",
+  "role": "SUBSCRIBER"
+}
