@@ -8,3 +8,7 @@ gst = { package = "gstreamer", version = "0.22.5" }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 anyhow = "1.0.86"
+reqwest = { version = "0.12.4", features = ["json"] }
+tokio = { version = "1.38.0", features = ["full"] }
+app-protocol = { path = "../app-protocol" }
+url = "2.5.0"
