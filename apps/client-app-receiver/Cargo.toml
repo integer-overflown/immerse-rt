@@ -12,3 +12,7 @@ reqwest = { version = "0.12.4", features = ["json"] }
 tokio = { version = "1.38.0", features = ["full"] }
 app-protocol = { path = "../app-protocol" }
 url = "2.5.0"
+
+[lib]
+name = "client_frontend_lib"
+crate-type = ["cdylib"]

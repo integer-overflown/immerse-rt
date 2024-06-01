@@ -1,16 +1,22 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 
-enum ExitCode : std::int16_t { FailedToLoadQml = -1 };
+#include "bridge/irt.h"
+
+enum ExitCode : std::int16_t { InitFailed = -1, CannotLoadQml = -2 };
 
 int main(int argc, char *argv[]) {
+    if (!irt::init()) {
+        return InitFailed;
+    }
+
     QGuiApplication app(argc, argv);
 
     QQmlApplicationEngine engine;
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreated, qApp,
                      [&engine] {
                          if (engine.rootObjects().isEmpty()) {
-                             QCoreApplication::exit(FailedToLoadQml);
+                             QCoreApplication::exit(CannotLoadQml);
                          }
                      });
 

@@ -1,7 +1,6 @@
 use std::env;
 
 use gst::glib;
-use tracing_subscriber::EnvFilter;
 
 use app_protocol::token::{PeerRole, TokenRequest};
 use client::Client;
@@ -22,11 +21,6 @@ async fn main() -> anyhow::Result<()> {
     let Some(server_url) = args.next() else {
         usage();
     };
-
-    gst::init().expect("Cannot initialize gstreamer");
-    tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::from_default_env())
-        .init();
 
     let client = Client::new(&server_url)?;
     let token = client
