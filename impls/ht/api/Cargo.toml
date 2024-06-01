@@ -1,0 +1,8 @@
+[package]
+name = "irt-ht-api"
+version = "0.1.0"
+edition = "2021"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+irt-ht-core-motion = { path = "../core-motion" }
+irt-ht-interface = { path = "../../../libs/ht" }
