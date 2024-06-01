@@ -1,38 +1,21 @@
-use std::ffi::{self, CStr};
+use std::ffi;
 
-#[repr(C)]
-enum PluginLoadingStatus {
-    Success = 0,
-    InvalidName = -1,
-    FailedToFindPlugin = -2,
-    FailedToLoadPlugin = -3,
-}
+use tracing::{debug, warn};
 
-#[no_mangle]
-extern "C" fn preload_gst_plugin(name: *const ffi::c_char) -> PluginLoadingStatus {
-    use PluginLoadingStatus::*;
+fn preload_gst_element(element_name: &str) -> bool {
+    debug!("Preloading {element_name}");
 
-    let registry = gst::Registry::get();
-    let name = unsafe { CStr::from_ptr(name) };
-    let plugin_name = match name.to_str() {
-        Ok(str) => str,
-        Err(_) => return InvalidName,
-    };
+    let res = gst::ElementFactory::make(element_name).build();
 
-    let plugin = registry.find_plugin(plugin_name);
-
-    let Some(plugin) = plugin else {
-        return FailedToFindPlugin;
-    };
-
-    if plugin.load().is_err() {
-        return FailedToLoadPlugin;
+    if res.is_err() {
+        warn!("Failed to load {element_name}");
     }
 
-    Success
+    res.is_ok()
 }
 
 #[no_mangle]
 extern "C" fn init() -> ffi::c_int {
-    crate::init().is_ok().into()
+    let res = crate::init().is_ok() && preload_gst_element("qml6glsink");
+    res.into()
 }
