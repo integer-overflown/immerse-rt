@@ -1,6 +1,9 @@
 use tracing_subscriber::EnvFilter;
 
+mod client;
 mod interop;
+mod stream;
+mod utils;
 
 pub fn init() -> Result<(), Box<dyn std::error::Error>> {
     gst::init()?;
