@@ -1,37 +1,24 @@
-use std::time::Duration;
-
 use url::Url;
 
 use app_protocol::token::{TokenRequest, TokenResponse};
 
 pub struct Client {
-    client: reqwest::Client,
     server_url: Url,
 }
 
 impl Client {
     pub fn new(server_url: &str) -> anyhow::Result<Self> {
-        let client = reqwest::ClientBuilder::new()
-            .connect_timeout(Duration::from_secs(10))
-            .build()?;
         let server_url = Url::parse(server_url)?;
 
-        Ok(Self { client, server_url })
+        Ok(Self { server_url })
     }
 
-    pub async fn request_token(&self, token_request: TokenRequest) -> reqwest::Result<String> {
-        let request = self
-            .client
-            .get(self.endpoint("request-token"))
-            .json(&token_request)
-            .build()?;
+    pub fn request_token(&self, token_request: TokenRequest) -> anyhow::Result<String> {
+        let endpoint = self.endpoint("request-token");
+        let response = ureq::request_url("GET", &endpoint).send_json(token_request)?;
+        let result: TokenResponse = response.into_json()?;
 
-        self.client
-            .execute(request)
-            .await?
-            .json::<TokenResponse>()
-            .await
-            .map(|response| response.token)
+        Ok(result.token)
     }
 
     fn endpoint(&self, path: &str) -> Url {
