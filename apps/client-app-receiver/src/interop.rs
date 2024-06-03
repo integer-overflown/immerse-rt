@@ -15,6 +15,7 @@ fn preload_gst_element(element_name: &str) -> bool {
 }
 
 #[no_mangle]
+#[must_use]
 extern "C" fn init() -> ffi::c_int {
     let res = crate::init().is_ok() && preload_gst_element("qml6glsink");
     res.into()

@@ -1,3 +1,6 @@
 language = "C++"
 namespace = "irt"
 pragma_once = true
+
+[fn]
+must_use = "[[nodiscard]]"
