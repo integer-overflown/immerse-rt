@@ -1,5 +1,5 @@
 [package]
-name = "client-app-receiver"
+name = "client-frontend-lib"
 version = "0.1.0"
 edition = "2021"
 
@@ -13,5 +13,4 @@ app-protocol = { path = "../app-protocol" }
 url = "2.5.0"
 
 [lib]
-name = "client_frontend_lib"
 crate-type = ["cdylib"]
