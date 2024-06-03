@@ -1,22 +1,17 @@
 use std::ffi;
 
-use tracing::{debug, warn};
-
-fn preload_gst_element(element_name: &str) -> bool {
-    debug!("Preloading {element_name}");
-
-    let res = gst::ElementFactory::make(element_name).build();
-
-    if res.is_err() {
-        warn!("Failed to load {element_name}");
-    }
-
-    res.is_ok()
-}
+use tracing::warn;
 
 #[no_mangle]
 #[must_use]
 extern "C" fn init() -> ffi::c_int {
-    let res = crate::init().is_ok() && preload_gst_element("qml6glsink");
+    let res = match crate::init() {
+        Ok(_) => true,
+        Err(e) => {
+            warn!("Failed to initialize: {e}");
+            false
+        }
+    };
+
     res.into()
 }
