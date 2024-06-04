@@ -1,9 +1,9 @@
+use std::convert::Infallible;
 use std::ffi::{self, CString};
+use std::ops::FromResidual;
 use std::str::Utf8Error;
 
 use tracing::warn;
-
-use app_protocol::token::{PeerRole, TokenRequest};
 
 #[no_mangle]
 #[must_use]
@@ -22,10 +22,8 @@ extern "C" fn init() -> ffi::c_int {
 #[repr(C)]
 #[derive(Copy, Clone)]
 enum ResultErrorCode {
-    None = 0,
-    InvalidUTF8 = -1,
-    InvalidUrl = -2,
-    RequestFailed = -3,
+    InvalidUtf8 = -1,
+    RequestFailed = -2,
 }
 
 #[repr(C)]
@@ -40,23 +38,25 @@ struct RequestResult {
     payload: ResultPayload,
 }
 
-impl From<ResultErrorCode> for RequestResult {
-    fn from(value: ResultErrorCode) -> Self {
+impl RequestResult {
+    fn new_with_payload(payload: *mut ffi::c_char) -> Self {
+        Self {
+            success: true,
+            payload: ResultPayload { token: payload },
+        }
+    }
+
+    fn new_with_error(error: ResultErrorCode) -> Self {
         Self {
             success: false,
-            payload: ResultPayload { error: value },
+            payload: ResultPayload { error },
         }
     }
 }
 
 impl From<CString> for RequestResult {
     fn from(value: CString) -> Self {
-        Self {
-            success: true,
-            payload: ResultPayload {
-                token: value.into_raw(),
-            },
-        }
+        Self::new_with_payload(value.into_raw())
     }
 }
 
@@ -67,55 +67,45 @@ struct RoomOptions {
     name: *const ffi::c_char,
 }
 
-impl From<Utf8Error> for RequestResult {
-    fn from(_: Utf8Error) -> Self {
-        RequestResult {
-            success: false,
-            payload: ResultPayload {
-                error: ResultErrorCode::InvalidUTF8,
-            },
-        }
+impl<E: Into<ResultErrorCode>> FromResidual<Result<Infallible, E>> for RequestResult {
+    fn from_residual(residual: Result<Infallible, E>) -> Self {
+        RequestResult::new_with_error(residual.err().unwrap().into())
     }
 }
 
-impl From<crate::RequestError> for RequestResult {
-    fn from(_: crate::RequestError) -> Self {
-        RequestResult {
-            success: false,
-            payload: ResultPayload {
-                error: ResultErrorCode::RequestFailed,
-            },
+macro_rules! define_error_code {
+    ($source_err:ty, $err_code_type:ty, $err_code:expr) => {
+        impl From<$source_err> for $err_code_type {
+            fn from(e: $source_err) -> Self {
+                tracing::error!("error occurred: {e}");
+                $err_code
+            }
         }
-    }
-}
-
-macro_rules! to_rust_str {
-    ($str:expr) => {
-        unsafe { ffi::CStr::from_ptr($str) }.to_str()
     };
 }
 
 macro_rules! try_convert {
     ($str:expr) => {
-        match unsafe { ffi::CStr::from_ptr($str) }.to_str() {
-            Ok(v) => v,
-            Err(e) => {
-                warn!("Invalid UTF-8 ({}): {}", std::stringify!($str), e);
-                return e.into();
-            }
-        }
+        unsafe { ffi::CStr::from_ptr($str) }.to_str()?
     };
 }
+
+define_error_code!(Utf8Error, ResultErrorCode, ResultErrorCode::InvalidUtf8);
+define_error_code!(
+    crate::RequestError,
+    ResultErrorCode,
+    ResultErrorCode::RequestFailed
+);
 
 impl TryFrom<RoomOptions> for crate::RoomOptions {
     type Error = Utf8Error;
 
     fn try_from(value: RoomOptions) -> Result<Self, Self::Error> {
         Ok(Self {
-            room_id: to_rust_str!(value.room_id)?.to_owned(),
-            identity: to_rust_str!(value.identity)?.to_owned(),
+            room_id: try_convert!(value.room_id).to_owned(),
+            identity: try_convert!(value.identity).to_owned(),
             name: match unsafe { value.name.as_ref() } {
-                Some(v) => Some(to_rust_str!(v)?.to_owned()),
+                Some(v) => Some(try_convert!(v).to_owned()),
                 None => None,
             },
         })
@@ -128,15 +118,10 @@ extern "C" fn request_token(
     server_url: *const ffi::c_char,
     room_options: RoomOptions,
 ) -> RequestResult {
-    let options = match room_options.try_into() {
-        Ok(v) => v,
-        Err(e) => return RequestResult::from(e),
-    };
+    let options = room_options.try_into()?;
+    let token = crate::request_token(try_convert!(server_url), options)?;
 
-    match crate::request_token(try_convert!(server_url), options) {
-        Ok(v) => CString::new(v).unwrap().into(),
-        Err(e) => e.into(),
-    }
+    RequestResult::new_with_payload(CString::new(token).unwrap().into_raw())
 }
 
 #[no_mangle]

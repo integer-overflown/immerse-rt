@@ -1,3 +1,5 @@
+#![feature(try_trait_v2)]
+
 use tracing_subscriber::EnvFilter;
 
 use app_protocol::token::{PeerRole, TokenRequest};
