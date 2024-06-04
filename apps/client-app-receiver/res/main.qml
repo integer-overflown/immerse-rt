@@ -11,5 +11,6 @@ ApplicationWindow {
 
     GstGLQt6VideoItem {
         anchors.fill: parent
+        objectName: "videoItem"
     }
 }
