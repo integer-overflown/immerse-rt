@@ -1,11 +1,9 @@
-use std::ffi::{self, CString};
+use std::ffi::{self, c_char, CString};
 use std::str::Utf8Error;
 
 use tracing::warn;
 
 use app_protocol::token::{PeerRole, TokenRequest};
-
-use crate::client::Client;
 
 #[no_mangle]
 #[must_use]
@@ -80,6 +78,23 @@ impl From<Utf8Error> for RequestResult {
     }
 }
 
+impl From<crate::RequestError> for RequestResult {
+    fn from(_: crate::RequestError) -> Self {
+        RequestResult {
+            success: false,
+            payload: ResultPayload {
+                error: ResultErrorCode::RequestFailed,
+            },
+        }
+    }
+}
+
+macro_rules! to_rust_str {
+    ($str:expr) => {
+        unsafe { ffi::CStr::from_ptr($str) }.to_str()
+    };
+}
+
 macro_rules! try_convert {
     ($str:expr) => {
         match unsafe { ffi::CStr::from_ptr($str) }.to_str() {
@@ -92,35 +107,34 @@ macro_rules! try_convert {
     };
 }
 
+impl TryFrom<RoomOptions> for crate::RoomOptions {
+    type Error = Utf8Error;
+
+    fn try_from(value: RoomOptions) -> Result<Self, Self::Error> {
+        Ok(Self {
+            room_id: to_rust_str!(value.room_id)?.to_owned(),
+            identity: to_rust_str!(value.identity)?.to_owned(),
+            name: match unsafe { value.name.as_ref() } {
+                Some(v) => Some(to_rust_str!(v)?.to_owned()),
+                None => None,
+            },
+        })
+    }
+}
+
 #[must_use]
 #[no_mangle]
 extern "C" fn request_token(
     server_url: *const ffi::c_char,
     room_options: RoomOptions,
 ) -> RequestResult {
-    let server_url = try_convert!(server_url);
-    let room_id = try_convert!(room_options.room_id).to_owned();
-    let identity = try_convert!(room_options.identity).to_owned();
-    let name = match unsafe { room_options.name.as_ref() } {
-        Some(v) => Some(try_convert!(v).to_string()),
-        None => None,
-    };
-
-    let client = match Client::new(server_url) {
+    let options = match room_options.try_into() {
         Ok(v) => v,
-        Err(e) => {
-            warn!("Invalid server url: {server_url}");
-            return ResultErrorCode::InvalidUrl.into();
-        }
+        Err(e) => return RequestResult::from(e),
     };
 
-    match client.request_token(TokenRequest {
-        name,
-        identity,
-        room_id,
-        role: PeerRole::Subscriber,
-    }) {
+    match crate::request_token(try_convert!(server_url), options) {
         Ok(v) => CString::new(v).unwrap().into(),
-        Err(e) => ResultErrorCode::RequestFailed.into(),
+        Err(e) => e.into(),
     }
 }
