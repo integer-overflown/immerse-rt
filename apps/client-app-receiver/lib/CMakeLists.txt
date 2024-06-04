@@ -20,3 +20,8 @@ add_library(client_lib_bridge INTERFACE
 
 target_include_directories(client_lib_bridge INTERFACE ${HEADER_OUTPUT_DIR})
 target_link_libraries(client_lib_bridge INTERFACE client_frontend_lib)
+
+set_source_files_properties(${HEADER_OUTPUT_DIR}/bridge/irt.h
+        TARGET_DIRECTORY client-app-receiver
+        PROPERTIES COMPILE_FLAGS -Wno-return-type-c-linkage
+)

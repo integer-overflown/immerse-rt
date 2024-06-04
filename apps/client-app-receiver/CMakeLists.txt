@@ -8,7 +8,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 enable_language(CXX)
 
 find_package(Qt6 COMPONENTS Core Qml Quick Concurrent REQUIRED)
-add_subdirectory(lib)
 
 add_executable(
         client-app-receiver
@@ -16,6 +15,8 @@ add_executable(
         app/main.cpp
         res/qml.qrc
 )
+
+add_subdirectory(lib)
 
 target_link_libraries(client-app-receiver PRIVATE
         Qt::Core

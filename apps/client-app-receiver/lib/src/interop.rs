@@ -20,43 +20,40 @@ extern "C" fn init() -> ffi::c_int {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone)]
-enum ResultErrorCode {
-    InvalidUtf8 = -1,
-    RequestFailed = -2,
+union FfiResultPayload<V: Copy, E: Copy> {
+    value: V,
+    error: E,
 }
 
 #[repr(C)]
-union ResultPayload {
-    token: *mut ffi::c_char,
-    error: ResultErrorCode,
-}
-
-#[repr(C)]
-struct RequestResult {
+struct FfiResult<V: Copy, E: Copy> {
     success: bool,
-    payload: ResultPayload,
+    payload: FfiResultPayload<V, E>,
 }
 
-impl RequestResult {
-    fn new_with_payload(payload: *mut ffi::c_char) -> Self {
+impl<V: Copy, E: Copy> FfiResultPayload<V, E> {
+    fn value(value: V) -> Self {
+        Self { value }
+    }
+
+    fn error(error: E) -> Self {
+        Self { error }
+    }
+}
+
+impl<V: Copy, E: Copy> FfiResult<V, E> {
+    fn new_with_payload(payload: V) -> Self {
         Self {
             success: true,
-            payload: ResultPayload { token: payload },
+            payload: FfiResultPayload::value(payload),
         }
     }
 
-    fn new_with_error(error: ResultErrorCode) -> Self {
+    fn new_with_error(error: E) -> Self {
         Self {
             success: false,
-            payload: ResultPayload { error },
+            payload: FfiResultPayload::error(error),
         }
-    }
-}
-
-impl From<CString> for RequestResult {
-    fn from(value: CString) -> Self {
-        Self::new_with_payload(value.into_raw())
     }
 }
 
@@ -67,9 +64,14 @@ struct RoomOptions {
     name: *const ffi::c_char,
 }
 
-impl<E: Into<ResultErrorCode>> FromResidual<Result<Infallible, E>> for RequestResult {
-    fn from_residual(residual: Result<Infallible, E>) -> Self {
-        RequestResult::new_with_error(residual.err().unwrap().into())
+impl<V, E, RE> FromResidual<Result<Infallible, RE>> for FfiResult<V, E>
+where
+    V: Copy,
+    E: Copy,
+    RE: Into<E>,
+{
+    fn from_residual(residual: Result<Infallible, RE>) -> Self {
+        FfiResult::new_with_error(residual.err().unwrap().into())
     }
 }
 
@@ -90,13 +92,6 @@ macro_rules! try_convert {
     };
 }
 
-define_error_code!(Utf8Error, ResultErrorCode, ResultErrorCode::InvalidUtf8);
-define_error_code!(
-    crate::RequestError,
-    ResultErrorCode,
-    ResultErrorCode::RequestFailed
-);
-
 impl TryFrom<RoomOptions> for crate::RoomOptions {
     type Error = Utf8Error;
 
@@ -111,6 +106,22 @@ impl TryFrom<RoomOptions> for crate::RoomOptions {
         })
     }
 }
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+enum RequestErrorCode {
+    InvalidUtf8 = -1,
+    RequestFailed = -2,
+}
+
+type RequestResult = FfiResult<*mut ffi::c_char, RequestErrorCode>;
+
+define_error_code!(Utf8Error, RequestErrorCode, RequestErrorCode::InvalidUtf8);
+define_error_code!(
+    crate::RequestError,
+    RequestErrorCode,
+    RequestErrorCode::RequestFailed
+);
 
 #[must_use]
 #[no_mangle]
@@ -127,6 +138,6 @@ extern "C" fn request_token(
 #[no_mangle]
 extern "C" fn free_result(request_result: RequestResult) {
     if request_result.success {
-        let _ = unsafe { CString::from_raw(request_result.payload.token) };
+        let _ = unsafe { CString::from_raw(request_result.payload.value) };
     }
 }
