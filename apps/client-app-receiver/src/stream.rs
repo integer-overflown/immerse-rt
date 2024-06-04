@@ -1,3 +1,5 @@
+use std::error::Error;
+
 use gst::glib;
 use gst::prelude::*;
 use tracing::{debug, warn};
@@ -75,7 +77,7 @@ pub fn connect(token: &str) -> StreamController {
 }
 
 impl StreamController {
-    pub fn play(&self) -> anyhow::Result<()> {
+    pub fn play(&self) -> Result<(), Box<dyn Error>> {
         self.pipeline.set_state(gst::State::Playing)?;
         Ok(())
     }
