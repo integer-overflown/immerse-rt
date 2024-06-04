@@ -14,6 +14,7 @@ add_executable(
         MACOSX_BUNDLE
         app/main.cpp
         res/qml.qrc
+        lib/config/clang.h
 )
 
 add_subdirectory(lib)

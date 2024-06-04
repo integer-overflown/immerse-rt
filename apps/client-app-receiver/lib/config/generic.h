@@ -1,0 +1,7 @@
+#ifndef IMMERSE_RT_GENERIC_H
+#define IMMERSE_RT_GENERIC_H
+
+#define IRT_HEADER_PRE
+#define IRT_HEADER_POST
+
+#endif // IMMERSE_RT_GENERIC_H

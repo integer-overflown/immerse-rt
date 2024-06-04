@@ -7,6 +7,14 @@ corrosion_import_crate(
         CRATE_TYPES cdylib
 )
 
+if (CMAKE_CXX_COMPILER_ID MATCHES Clang)
+    set(CONFIG_FILE_H ${CMAKE_CURRENT_LIST_DIR}/config/clang.h)
+else ()
+    set(CONFIG_FILE_H ${CMAKE_CURRENT_LIST_DIR}/config/generic.h)
+endif ()
+
+file(COPY_FILE ${CONFIG_FILE_H} ${HEADER_OUTPUT_DIR}/bridge/config.h)
+
 add_custom_command(
         OUTPUT ${HEADER_OUTPUT_DIR}/bridge/irt.h
         COMMAND ${CBINDGEN_COMMAND} --output ${HEADER_OUTPUT_DIR}/bridge/irt.h
@@ -23,8 +31,3 @@ add_library(client_lib_bridge INTERFACE
 
 target_include_directories(client_lib_bridge INTERFACE ${HEADER_OUTPUT_DIR})
 target_link_libraries(client_lib_bridge INTERFACE client_frontend_lib)
-
-set_source_files_properties(${HEADER_OUTPUT_DIR}/bridge/irt.h
-        TARGET_DIRECTORY client-app-receiver
-        PROPERTIES COMPILE_FLAGS -Wno-return-type-c-linkage
-)
