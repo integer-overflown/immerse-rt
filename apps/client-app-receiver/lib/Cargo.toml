@@ -9,7 +9,7 @@ tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 thiserror = "1.0.61"
 ureq = { version = "2.9.7", features = ["json"] }
-app-protocol = { path = "../app-protocol" }
+app-protocol = { path = "../../app-protocol" }
 url = "2.5.0"
 
 [lib]

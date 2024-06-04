@@ -3,6 +3,6 @@ resolver = "2"
 members = [
     "app",
     "app-protocol",
-    "client-app-receiver",
+    "client-app-receiver/lib",
     "webrtc-server"
 ]
