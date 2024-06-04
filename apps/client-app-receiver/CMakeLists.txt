@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 enable_language(CXX)
 
-find_package(Qt6 COMPONENTS Core Qml Quick REQUIRED)
+find_package(Qt6 COMPONENTS Core Qml Quick Concurrent REQUIRED)
 find_program(CBINDGEN_COMMAND cbindgen REQUIRED)
 
 set(HEADER_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/bridge-include)
@@ -32,5 +32,5 @@ add_executable(
         res/qml.qrc
 )
 
-target_link_libraries(client-app-receiver PRIVATE Qt::Core Qt::Qml Qt::Quick client_frontend_lib)
+target_link_libraries(client-app-receiver PRIVATE Qt::Core Qt::Qml Qt::Quick Qt::Concurrent client_frontend_lib)
 target_include_directories(client-app-receiver PRIVATE ${HEADER_OUTPUT_DIR})

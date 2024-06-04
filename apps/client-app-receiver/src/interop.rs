@@ -1,4 +1,4 @@
-use std::ffi::{self, c_char, CString};
+use std::ffi::{self, CString};
 use std::str::Utf8Error;
 
 use tracing::warn;
@@ -30,7 +30,7 @@ enum ResultErrorCode {
 
 #[repr(C)]
 union ResultPayload {
-    token: *const ffi::c_char,
+    token: *mut ffi::c_char,
     error: ResultErrorCode,
 }
 
@@ -136,5 +136,12 @@ extern "C" fn request_token(
     match crate::request_token(try_convert!(server_url), options) {
         Ok(v) => CString::new(v).unwrap().into(),
         Err(e) => e.into(),
+    }
+}
+
+#[no_mangle]
+extern "C" fn free_result(request_result: RequestResult) {
+    if request_result.success {
+        let _ = unsafe { CString::from_raw(request_result.payload.token) };
     }
 }
