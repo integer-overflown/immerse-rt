@@ -6,7 +6,11 @@ use tracing::{debug, warn};
 
 use crate::element;
 
-fn handle_webrtc_pad(src_pad: &gst::Pad, pipeline: &gst::Pipeline) -> Option<glib::Value> {
+fn handle_webrtc_pad(
+    src_pad: &gst::Pad,
+    pipeline: &gst::Pipeline,
+    video_sink: &gst::Element,
+) -> Option<glib::Value> {
     debug!("Have new pad: {}", src_pad.name());
 
     let mut elements = Vec::with_capacity(3);
@@ -16,8 +20,15 @@ fn handle_webrtc_pad(src_pad: &gst::Pad, pipeline: &gst::Pipeline) -> Option<gli
 
     match &pad_name[..5] {
         "video" => {
+            let pad = video_sink.static_pad("sink").unwrap();
+
+            if pad.is_linked() {
+                warn!("Video sink os already linked - ignoring this pad");
+                return None;
+            }
+
             elements.push(element!("videoconvert"));
-            elements.push(element!("autovideosink"));
+            elements.push(video_sink.clone());
         }
         "audio" => {
             elements.push(element!("audioconvert"));
@@ -52,7 +63,7 @@ pub struct StreamController {
     pipeline: gst::Pipeline,
 }
 
-pub fn connect(token: &str) -> StreamController {
+pub fn create(token: &str, widget: glib::ffi::gpointer) -> StreamController {
     let pipeline = gst::Pipeline::new();
     let src = gst::ElementFactory::make("livekitwebrtcsrc")
         .build()
@@ -61,16 +72,20 @@ pub fn connect(token: &str) -> StreamController {
     let signaller: glib::Object = src.property("signaller");
     signaller.set_property("auth-token", token);
 
+    let video_sink = gst::ElementFactory::make("qml6glsink")
+        .property("widget", widget)
+        .build()
+        .expect("Should have Qt6 plugin installed");
+
     {
         let pipeline = pipeline.clone();
 
         src.connect("pad-added", false, move |args| {
             let pad: gst::Pad = args[1].get().unwrap();
-            handle_webrtc_pad(&pad, &pipeline);
+            handle_webrtc_pad(&pad, &pipeline, &video_sink);
             None
         });
     }
-
     pipeline.add(&src).expect("Could not add elements");
 
     StreamController { pipeline }
