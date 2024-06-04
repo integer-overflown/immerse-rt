@@ -4,7 +4,7 @@
 #include <QQuickWindow>
 #include <QtConcurrent>
 
-#include <type_traits>
+#include <concepts>
 
 #include "bridge/irt.h"
 
@@ -19,7 +19,7 @@ void request_token(const char *serverUrl, irt::RoomOptions options,
         return irt::request_token(serverUrl, options);
     }).then([visitor = std::move(visitor)](irt::RequestResult result) {
         visitor(result);
-        irt::free_result(result);
+        irt::free_request_result(result);
     });
 }
 } // namespace

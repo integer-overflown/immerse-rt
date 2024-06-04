@@ -46,7 +46,7 @@ impl TryFrom<RoomOptions> for crate::RoomOptions {
 #[no_mangle]
 extern "C" fn request_token(
     server_url: *const ffi::c_char,
-    room_options: RoomOptions, 
+    room_options: RoomOptions,
 ) -> RequestResult {
     let options = room_options.try_into()?;
     let token = crate::request_token(try_convert!(server_url), options)?;
@@ -55,7 +55,7 @@ extern "C" fn request_token(
 }
 
 #[no_mangle]
-extern "C" fn free_result(request_result: RequestResult) {
+extern "C" fn free_request_result(request_result: RequestResult) {
     if request_result.success {
         let _ = unsafe { CString::from_raw(request_result.payload.value) };
     }

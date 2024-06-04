@@ -5,6 +5,7 @@ use std::ops::FromResidual;
 use tracing::warn;
 
 mod request;
+mod stream;
 
 #[no_mangle]
 #[must_use]

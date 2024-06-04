@@ -11,7 +11,10 @@ add_custom_command(
         OUTPUT ${HEADER_OUTPUT_DIR}/bridge/irt.h
         COMMAND ${CBINDGEN_COMMAND} --output ${HEADER_OUTPUT_DIR}/bridge/irt.h
         WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
-        DEPENDS src/interop.rs
+        DEPENDS
+        src/interop.rs
+        src/interop/request.rs
+        src/interop/stream.rs
 )
 
 add_library(client_lib_bridge INTERFACE
