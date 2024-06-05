@@ -1,6 +1,7 @@
 use std::convert::Infallible;
 use std::ffi;
 use std::ops::FromResidual;
+use std::ptr::NonNull;
 
 use tracing::warn;
 
@@ -55,6 +56,14 @@ impl<V: Copy, E: Copy> FfiResult<V, E> {
         Self {
             success: false,
             payload: FfiResultPayload::error(error),
+        }
+    }
+
+    fn value(&self) -> Option<V> {
+        if self.success {
+            Some(unsafe { self.payload.value })
+        } else {
+            None
         }
     }
 }

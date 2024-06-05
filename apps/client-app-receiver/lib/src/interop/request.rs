@@ -56,7 +56,7 @@ extern "C" fn request_token(
 
 #[no_mangle]
 extern "C" fn free_request_result(request_result: RequestResult) {
-    if request_result.success {
-        let _ = unsafe { CString::from_raw(request_result.payload.value) };
+    if let Some(p) = request_result.value() {
+        let _ = unsafe { CString::from_raw(p) };
     }
 }

@@ -30,7 +30,12 @@ extern "C" fn create_stream(
 
 #[no_mangle]
 extern "C" fn free_stream_result(result: CreateStreamResult) {
-    if result.success {
-        let _ = unsafe { Box::from_raw(result.payload.value) };
+    if let Some(p) = result.value() {
+        free_stream(p);
     }
+}
+
+#[no_mangle]
+extern "C" fn free_stream(stream: *mut StreamController) {
+    let _ = unsafe { Box::from_raw(stream) };
 }
