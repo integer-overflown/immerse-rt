@@ -13,6 +13,7 @@ else ()
     set(CONFIG_FILE_H ${CMAKE_CURRENT_LIST_DIR}/config/generic.h)
 endif ()
 
+file(MAKE_DIRECTORY ${HEADER_OUTPUT_DIR}/bridge)
 file(COPY_FILE ${CONFIG_FILE_H} ${HEADER_OUTPUT_DIR}/bridge/config.h)
 
 add_custom_command(
