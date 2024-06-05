@@ -1,4 +1,5 @@
 use std::ffi;
+use std::mem::ManuallyDrop;
 use std::str::Utf8Error;
 
 use crate::stream::StreamController;
@@ -38,4 +39,12 @@ extern "C" fn free_stream_result(result: CreateStreamResult) {
 #[no_mangle]
 extern "C" fn free_stream(stream: *mut StreamController) {
     let _ = unsafe { Box::from_raw(stream) };
+}
+
+#[no_mangle]
+#[must_use]
+extern "C" fn start_stream(stream: *mut StreamController) -> bool {
+    let stream = ManuallyDrop::new(unsafe { Box::from_raw(stream) });
+
+    stream.play().is_ok()
 }

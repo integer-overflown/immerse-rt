@@ -6,6 +6,7 @@
 #include <QQmlApplicationEngine>
 #include <QQuickItem>
 #include <QQuickWindow>
+#include <QRunnable>
 #include <QtConcurrent>
 
 #include "bridge/irt.h"
@@ -116,8 +117,16 @@ int main(int argc, char *argv[]) {
 
             throw app::StreamSetupFailure(result.payload.error);
         })
-        .then([](irt::StreamController *controller) {
+        .then([videoItem](irt::StreamController *controller) {
             qDebug(logging::app()) << "Ready to start";
+
+            videoItem->window()->scheduleRenderJob(
+                QRunnable::create([controller] {
+                    if (!irt::start_stream(controller)) {
+                        qWarning(logging::app()) << "Failed to start stream";
+                    }
+                }),
+                QQuickWindow::BeforeSynchronizingStage);
         })
         .onFailed([](const std::exception &e) {
             qCritical(logging::app()) << "Failed with exception:" << e.what();

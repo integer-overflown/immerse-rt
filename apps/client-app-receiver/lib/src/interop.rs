@@ -1,7 +1,6 @@
 use std::convert::Infallible;
 use std::ffi;
 use std::ops::FromResidual;
-use std::ptr::NonNull;
 
 use tracing::warn;
 

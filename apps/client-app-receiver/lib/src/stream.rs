@@ -27,7 +27,17 @@ fn handle_webrtc_pad(
                 return None;
             }
 
+            let filter_caps = gst::Caps::builder("video/x-raw")
+                .field("format", "YV12")
+                .build();
+            let caps_filter = gst::ElementFactory::make("capsfilter")
+                .property("caps", filter_caps)
+                .build()
+                .unwrap();
+
             elements.push(element!("videoconvert"));
+            elements.push(caps_filter);
+            elements.push(element!("glupload"));
             elements.push(video_sink.clone());
         }
         "audio" => {
