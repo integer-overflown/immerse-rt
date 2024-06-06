@@ -23,7 +23,7 @@ fn handle_webrtc_pad(
             let pad = video_sink.static_pad("sink").unwrap();
 
             if pad.is_linked() {
-                warn!("Video sink os already linked - ignoring this pad");
+                warn!("Video sink is already linked - ignoring this pad");
                 return None;
             }
 
