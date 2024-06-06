@@ -13,7 +13,7 @@ fn handle_webrtc_pad(
 ) -> Option<glib::Value> {
     debug!("Have new pad: {}", src_pad.name());
 
-    let mut elements = Vec::with_capacity(3);
+    let mut elements = Vec::with_capacity(8);
     elements.push(element!("queue"));
 
     let pad_name = src_pad.name();
@@ -39,10 +39,18 @@ fn handle_webrtc_pad(
             elements.push(caps_filter);
             elements.push(element!("glupload"));
             elements.push(video_sink.clone());
+
+            pipeline
+                .add_many(&elements[..elements.len() - 1])
+                .expect("Could not add elements");
         }
         "audio" => {
             elements.push(element!("audioconvert"));
             elements.push(element!("autoaudiosink"));
+
+            pipeline
+                .add_many(&elements)
+                .expect("Could not add elements");
         }
         _ => {
             warn!("Cannot handle pad: '{pad_name}'");
@@ -50,9 +58,6 @@ fn handle_webrtc_pad(
         }
     }
 
-    pipeline
-        .add_many(&elements)
-        .expect("Could not add elements");
     gst::Element::link_many(&elements).expect("Could not link elements");
 
     let chain_head = &elements[0];
@@ -89,6 +94,7 @@ pub fn create(token: &str, widget: glib::ffi::gpointer) -> StreamController {
 
     {
         let pipeline = pipeline.clone();
+        let video_sink = video_sink.clone();
 
         src.connect("pad-added", false, move |args| {
             let pad: gst::Pad = args[1].get().unwrap();
@@ -96,12 +102,27 @@ pub fn create(token: &str, widget: glib::ffi::gpointer) -> StreamController {
             None
         });
     }
-    pipeline.add(&src).expect("Could not add elements");
+    pipeline
+        // It's important to add video_sink to the initial construction of the pipeline
+        // to guarantee correct setup for the rendering during the actual stream.
+        // The setup method is supposed to be called from the rendering thread, which
+        // should bring the elements, including the sink, to the READY state and therefore
+        // acquire an OpenGL context.
+        // Otherwise, if the NULL=>READY transition happens in handle_webrtc_pad, the rendering
+        // will most likely fail.
+        // FIXME(max-khm): this will cause the pipeline to hang for the audio-only streams
+        .add_many([src, video_sink])
+        .expect("Could not add elements");
 
     StreamController { pipeline }
 }
 
 impl StreamController {
+    pub fn setup(&self) -> Result<(), Box<dyn Error>> {
+        self.pipeline.set_state(gst::State::Ready)?;
+        Ok(())
+    }
+
     pub fn play(&self) -> Result<(), Box<dyn Error>> {
         self.pipeline.set_state(gst::State::Playing)?;
         Ok(())

@@ -48,3 +48,11 @@ extern "C" fn start_stream(stream: *mut StreamController) -> bool {
 
     stream.play().is_ok()
 }
+
+#[no_mangle]
+#[must_use]
+extern "C" fn setup_stream(stream: *mut StreamController) -> bool {
+    let stream = ManuallyDrop::new(unsafe { Box::from_raw(stream) });
+
+    stream.setup().is_ok()
+}
