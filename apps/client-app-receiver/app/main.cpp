@@ -42,18 +42,28 @@ Q_LOGGING_CATEGORY(app, "irt.app")
 namespace app {
 namespace {
 
-class RequestFailure : public std::runtime_error {
+class RequestFailed : public std::runtime_error {
   public:
-    explicit RequestFailure(irt::RequestErrorCode e)
+    explicit RequestFailed(irt::RequestErrorCode e)
         : std::runtime_error(
               std::format("Request failed with {}", int(e)).c_str()) {}
 };
 
-class StreamSetupFailure : public std::runtime_error {
+class CreateStreamFailed : public std::runtime_error {
   public:
-    explicit StreamSetupFailure(irt::CreateStreamErrorCode e)
+    explicit CreateStreamFailed(irt::CreateStreamErrorCode e)
         : std::runtime_error(
               std::format("Cannot create stream: {}", int(e)).c_str()) {}
+};
+
+class SetupStreamFailed : public std::runtime_error {
+  public:
+    SetupStreamFailed() : std::runtime_error("Failed to setup stream") {}
+};
+
+class StartStreamFailed : public std::runtime_error {
+  public:
+    StartStreamFailed() : std::runtime_error("Failed to start stream") {}
 };
 
 QFuture<irt::RequestResult> request_token(const char *serverUrl,
@@ -107,7 +117,7 @@ int main(int argc, char *argv[]) {
                                                 videoItem);
                   }
 
-                  throw app::RequestFailure(result.payload.error);
+                  throw app::RequestFailed(result.payload.error);
               })
         .then([](irt::CreateStreamResult result) {
             if (result.success) {
@@ -115,18 +125,32 @@ int main(int argc, char *argv[]) {
                 return result.payload.value;
             }
 
-            throw app::StreamSetupFailure(result.payload.error);
+            throw app::CreateStreamFailed(result.payload.error);
         })
         .then([videoItem](irt::StreamController *controller) {
             qDebug(logging::app()) << "Ready to start";
 
+            QPromise<irt::StreamController *> p;
+            auto future = p.future();
+
             videoItem->window()->scheduleRenderJob(
-                QRunnable::create([controller] {
-                    if (!irt::start_stream(controller)) {
-                        qWarning(logging::app()) << "Failed to start stream";
+                QRunnable::create([p = std::move(p), controller]() mutable {
+                    if (!irt::setup_stream(controller)) {
+                        throw app::SetupStreamFailed{};
                     }
+
+                    p.addResult(controller);
+                    p.finish();
                 }),
                 QQuickWindow::BeforeSynchronizingStage);
+
+            return future;
+        })
+        .unwrap()
+        .then([](irt::StreamController *controller) {
+            if (!irt::start_stream(controller)) {
+                throw app::StartStreamFailed{};
+            }
         })
         .onFailed([](const std::exception &e) {
             qCritical(logging::app()) << "Failed with exception:" << e.what();
