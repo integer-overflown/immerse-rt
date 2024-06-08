@@ -18,8 +18,8 @@ fn handle_webrtc_pad(
 
     let pad_name = src_pad.name();
 
-    match &pad_name[..5] {
-        "video" => {
+    match pad_name.get(..5) {
+        Some("video") => {
             let pad = video_sink.static_pad("sink").unwrap();
 
             if pad.is_linked() {
@@ -44,7 +44,7 @@ fn handle_webrtc_pad(
                 .add_many(&elements[..elements.len() - 1])
                 .expect("Could not add elements");
         }
-        "audio" => {
+        Some("audio") => {
             elements.push(element!("audioconvert"));
             elements.push(element!("autoaudiosink"));
 
