@@ -3,7 +3,7 @@ enable_language(Swift)
 add_library(
         ht_core_motion
         STATIC
-        main.swift
+        lib.swift
 )
 
 find_library(FRAMEWORK_CORE_MOTION "CoreMotion" REQUIRED)
