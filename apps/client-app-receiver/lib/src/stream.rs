@@ -1,8 +1,10 @@
 use std::error::Error;
+use std::sync::mpsc::{self, Sender};
+use std::thread::{self, JoinHandle};
 
-use gst::glib;
 use gst::prelude::*;
-use tracing::{debug, info, warn};
+use gst::{glib, BusSyncReply, MessageView};
+use tracing::{debug, error, info, warn};
 
 use irt_ht_api as api;
 
@@ -76,9 +78,96 @@ fn handle_webrtc_pad(
     None
 }
 
+#[derive(Debug)]
+enum StateChangeMessage {
+    StartedPlaying,
+    ShuttingDown,
+}
+
+struct HtThreadConfig {
+    handle: Option<JoinHandle<()>>,
+    sender: Sender<StateChangeMessage>,
+}
+
 pub struct StreamController {
     pipeline: gst::Pipeline,
-    head_tracker: Option<api::PlatformHeadTracker>,
+    ht_thread: Option<HtThreadConfig>,
+}
+
+fn create_ht_thread() -> Option<HtThreadConfig> {
+    let Some(_ht_api_impl) = api::platform_impl() else {
+        info!("No platform head-tracking implementation: dynamic spatial audio is disabled");
+        return None;
+    };
+
+    info!("Have platform head-tracking implementation: dynamic spatial audio is enabled");
+
+    let (tx, rx) = mpsc::channel();
+
+    let ht_thread_handle = thread::Builder::new()
+        .name("irt-ht-thread".to_owned())
+        .spawn(move || {
+            use StateChangeMessage::*;
+            debug!("Head-tracking thread has started");
+
+            loop {
+                let Ok(message) = rx.recv() else {
+                    debug!("Sending counterpart has dropped - quitting");
+                    return;
+                };
+
+                if matches!(message, StartedPlaying | ShuttingDown) {
+                    debug!("Unblocking, reason: {:?}", message);
+                    break;
+                }
+            }
+        })
+        .unwrap();
+
+    Some(HtThreadConfig {
+        sender: tx,
+        handle: Some(ht_thread_handle),
+    })
+}
+
+struct MessageHandlerData<'a>(&'a Sender<StateChangeMessage>, &'a gst::Pipeline);
+
+fn on_bus_message(
+    message: &gst::Message,
+    MessageHandlerData(tx, pipeline): MessageHandlerData,
+) -> BusSyncReply {
+    match message.view() {
+        MessageView::StateChanged(state_changed) => 'b: {
+            if message.src() != Some(pipeline.upcast_ref::<gst::Object>()) {
+                break 'b;
+            }
+
+            debug!(
+                "Pipeline state changed: {:?} -> {:?} (pending {:?})",
+                state_changed.old(),
+                state_changed.current(),
+                state_changed.pending()
+            );
+
+            if state_changed.current() != gst::State::Playing {
+                break 'b;
+            }
+
+            if let Err(e) = tx.send(StateChangeMessage::StartedPlaying) {
+                warn!("Receiver has already hang up: {e}");
+            }
+        }
+        MessageView::Error(error) => {
+            error!(
+                "Pipeline error: {}; debug info: {:?}",
+                error.error().message(),
+                error.debug()
+            )
+        }
+        _ => {}
+    }
+
+    BusSyncReply::Pass
 }
 
 pub fn create(token: &str, widget: glib::ffi::gpointer) -> StreamController {
@@ -118,9 +207,23 @@ pub fn create(token: &str, widget: glib::ffi::gpointer) -> StreamController {
         .add_many([src, video_sink])
         .expect("Could not add elements");
 
+    let ht_thread = create_ht_thread();
+
+    if let Some(config) = ht_thread.as_ref() {
+        let tx = config.sender.clone();
+        let pipeline = pipeline.clone();
+
+        pipeline
+            .bus()
+            .unwrap()
+            .set_sync_handler(move |_bus, message| {
+                on_bus_message(message, MessageHandlerData(&tx, &pipeline))
+            });
+    }
+
     StreamController {
         pipeline,
-        head_tracker: api::platform_impl(),
+        ht_thread,
     }
 }
 
@@ -132,16 +235,25 @@ impl StreamController {
 
     pub fn play(&self) -> Result<(), Box<dyn Error>> {
         self.pipeline.set_state(gst::State::Playing)?;
-
-        info!(
-            "Starting stream, head tracking is {}",
-            if self.head_tracker.is_some() {
-                "on"
-            } else {
-                "off"
-            }
-        );
-
         Ok(())
+    }
+}
+
+impl Drop for StreamController {
+    fn drop(&mut self) {
+        debug!("Shutting down");
+
+        let Some(HtThreadConfig { sender, handle }) = self.ht_thread.as_mut() else {
+            return;
+        };
+
+        let _ = sender.send(StateChangeMessage::ShuttingDown);
+
+        let Err(_) = handle.take().map_or(Ok(()), JoinHandle::<()>::join) else {
+            debug!("Head-tracking thread is finished");
+            return;
+        };
+
+        warn!("Head-tracking thread panicked on shutdown");
     }
 }

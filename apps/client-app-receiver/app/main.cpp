@@ -133,6 +133,12 @@ int main(int argc, char *argv[]) {
             QPromise<irt::StreamController *> p;
             auto future = p.future();
 
+            QObject::connect(qApp, &QGuiApplication::lastWindowClosed, qApp,
+                             [controller] {
+                                 qDebug(logging::app()) << "Destroying stream";
+                                 irt::free_stream(controller);
+                             });
+
             videoItem->window()->scheduleRenderJob(
                 QRunnable::create([p = std::move(p), controller]() mutable {
                     if (!irt::setup_stream(controller)) {
