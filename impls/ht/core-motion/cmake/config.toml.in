@@ -1,2 +1,2 @@
 [build]
-rustflags = ["-L native=@SWIFT_LIB_LOCATION@ -l static=@SWIFT_LIB_NAME@"]
+rustflags = ["-L native=$<TARGET_FILE_DIR:ht_core_motion> -l static=$<TARGET_FILE_BASE_NAME:ht_core_motion>"]
