@@ -4,8 +4,6 @@
 //! Any current or future implementation of head-tracking feature shall comply with the traits
 //! described in this module.
 
-use std::sync::mpsc::Receiver;
-
 pub use irt_lin_alg::{Orientation, Quaternion, UnitQuaternion};
 
 /// Unknown, unexpected or otherwise unclassified error.
@@ -75,18 +73,28 @@ pub trait HeadTracker {
     /// This function may fail if the API wrapped by the implementation is not available or
     /// cannot be accessed.
     ///
-    /// If the function completes successfully, it returns a receiver object that can be used to
-    /// pull the orientation updates.
-    fn start_motion_updates(&self) -> Result<Receiver<Orientation>, Error>;
+    /// If the function completes successfully, you will be able to use
+    /// [pull_orientation] method to pull the latest motion data.
+    ///
+    /// [pull_orientation]: HeadTracker::pull_orientation
+    fn start_motion_updates(&self) -> Result<(), Error>;
+
+    /// Pull the latest motion update.
+    ///
+    /// Returns [None] if there is no motion data, otherwise the returned value will contain the
+    /// listener's orientation, represented as a unit quaternion.
+    fn pull_orientation(&self) -> Option<UnitQuaternion>;
 
     /// Stop receiving motion updates.
     ///
-    /// This function destroys the sender object returned by [HeadTracker::start_motion_updates], which
-    /// will unblock the receiving end waiting for the updates.
+    /// After completion, the values returned by [pull_orientation] will stop being updated.
     ///
-    /// The updates may always be resumed by calling [HeadTracker::start_motion_updates] again.
+    /// The updates may always be resumed by calling [start_motion_updates] again.
     ///
     /// Return nothing upon success or a generic error if an API-specific failure has prevented
     /// the updates from stopping.
+    ///
+    /// [pull_orientation]: HeadTracker::pull_orientation
+    /// [start_motion_updates]: HeadTracker::start_motion_updates
     fn stop_motion_updates(&self) -> Result<(), UnknownError>;
 }

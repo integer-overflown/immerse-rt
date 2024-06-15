@@ -1,6 +1,3 @@
-use std::sync::mpsc;
-use std::sync::mpsc::{Receiver, Sender};
-
 use irt_ht_interface as ht;
 
 #[swift_bridge::bridge]
@@ -36,12 +33,6 @@ mod ffi {
         z: f64,
     }
 
-    extern "Rust" {
-        type MotionDataDestination;
-
-        fn push_quaternion(&mut self, quaternion: Quaternion) -> bool;
-    }
-
     extern "Swift" {
         type CoreMotionHeadTracker;
 
@@ -49,20 +40,13 @@ mod ffi {
         fn new() -> CoreMotionHeadTracker;
 
         #[swift_bridge(swift_name = "startMotionUpdates")]
-        fn start_motion_updates(&self, dest: MotionDataDestination) -> StartResult;
+        fn start_motion_updates(&self) -> StartResult;
+
+        #[swift_bridge(swift_name = "pullOrientation")]
+        fn pull_orientation(&self) -> Option<Quaternion>;
 
         #[swift_bridge(swift_name = "stopMotionUpdates")]
         fn stop_motion_updates(&self) -> StopResult;
-    }
-}
-
-struct MotionDataDestination {
-    source: Sender<ht::Orientation>,
-}
-
-impl MotionDataDestination {
-    fn push_quaternion(&mut self, quaternion: ffi::Quaternion) -> bool {
-        self.source.send(quaternion.into()).is_err()
     }
 }
 
@@ -86,17 +70,17 @@ impl Default for HeadTracker {
 
 // TODO(max-khm): check that resources are freed correctly between start/stop calls
 impl ht::HeadTracker for HeadTracker {
-    fn start_motion_updates(&self) -> Result<Receiver<ht::Orientation>, ht::Error> {
+    fn start_motion_updates(&self) -> Result<(), ht::Error> {
         use ffi::StartResult;
 
-        let (tx, rx) = mpsc::channel();
-
-        let dest = MotionDataDestination { source: tx };
-
-        match self.internal.start_motion_updates(dest) {
-            StartResult::Success => Ok(rx),
+        match self.internal.start_motion_updates() {
+            StartResult::Success => Ok(()),
             StartResult::Failure(e) => Err(e.into()),
         }
+    }
+
+    fn pull_orientation(&self) -> Option<ht::UnitQuaternion> {
+        self.internal.pull_orientation().map(|q| q.into())
     }
 
     fn stop_motion_updates(&self) -> Result<(), ht::UnknownError> {
@@ -119,6 +103,8 @@ impl From<ffi::Quaternion> for ht::UnitQuaternion {
             value.y as f32,
             value.z as f32,
         );
+
+        // TODO(max-khm): this could use unchecked API is CoreMotion already outputs unit quaternions
         Self::new_normalize(q)
     }
 }
