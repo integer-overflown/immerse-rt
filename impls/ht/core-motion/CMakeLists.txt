@@ -22,29 +22,29 @@ configure_file(
         @ONLY
 )
 
-add_custom_target(irt_make_bridge
-        COMMAND rs::swift_bridge parse-bridges --output ${GENERATED_DIR} ${BRIDGE_TARGET_NAME} src/lib.rs
-        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+set(GENERATED_SWIFT
+        ${GENERATED_DIR}/${BRIDGE_TARGET_NAME}/${BRIDGE_TARGET_NAME}.swift
+        ${GENERATED_DIR}/SwiftBridgeCore.swift
+)
+
+set(GENERATED_HEADERS
+        ${GENERATED_DIR}/${BRIDGE_TARGET_NAME}/${BRIDGE_TARGET_NAME}.h
+        ${GENERATED_DIR}/SwiftBridgeCore.h
 )
 
 add_custom_command(
         OUTPUT
-        ${GENERATED_DIR}/${BRIDGE_TARGET_NAME}/${BRIDGE_TARGET_NAME}.swift
-        ${GENERATED_DIR}/${BRIDGE_TARGET_NAME}/${BRIDGE_TARGET_NAME}.h
-        ${GENERATED_DIR}/SwiftBridgeCore.swift
-        ${GENERATED_DIR}/SwiftBridgeCore.h
+        ${GENERATED_SWIFT}
+        ${GENERATED_HEADERS}
         DEPENDS src/lib.rs
-        COMMAND irt_make_bridge
+        COMMAND rs::swift_bridge parse-bridges --output ${GENERATED_DIR} ${BRIDGE_TARGET_NAME} src/lib.rs
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
         COMMENT "Generating bridging files..."
         VERBATIM
 )
 
 add_library(irt_bridge INTERFACE)
-
-target_sources(irt_bridge INTERFACE
-        ${GENERATED_DIR}/${BRIDGE_TARGET_NAME}/${BRIDGE_TARGET_NAME}.swift
-        ${GENERATED_DIR}/SwiftBridgeCore.swift
-)
+target_sources(irt_bridge INTERFACE ${GENERATED_SWIFT})
 
 # TODO(max-khm): figure out target location dynamically
 # Current logic is a stub and will break in non-debug builds:
@@ -56,9 +56,9 @@ target_compile_options(irt_bridge INTERFACE
         -l${BRIDGE_TARGET_NAME}
 )
 
-add_subdirectory(swift)
-
 file(GENERATE
         OUTPUT ${CMAKE_CURRENT_LIST_DIR}/.config/config.toml
         INPUT ${CMAKE_CURRENT_LIST_DIR}/cmake/config.toml.in
 )
+
+add_subdirectory(swift)
