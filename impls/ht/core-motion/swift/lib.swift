@@ -4,6 +4,12 @@ import os
 
 let logger = Logger(subsystem: "com.github.immerse_rt", category: "ht_core_motion")
 
+extension Quaternion {
+    init(_ q: CMQuaternion) {
+        self.init(w: q.w, x: q.x, y: q.y, z: q.z)
+    }
+}
+
 class CoreMotionHeadTracker: NSObject, CMHeadphoneMotionManagerDelegate {
     let motionService = CMHeadphoneMotionManager()
 
@@ -25,26 +31,19 @@ class CoreMotionHeadTracker: NSObject, CMHeadphoneMotionManagerDelegate {
         logger.debug("isDeviceMotionAvailable: \(self.motionService.isDeviceMotionAvailable)")
         logger.debug("isDeviceMotionActive: \(self.motionService.isDeviceMotionActive)")
 
-        motionService.startDeviceMotionUpdates(to: OperationQueue(), withHandler: { [weak self] motion, error in
-            guard let self else {
-                return
-            }
-
-            guard error == nil else {
-                logger.error("Error received during receiving motion updates: \(error)")
-                let _ = stopMotionUpdates()
-                return // TODO(max-khm): propagate error on the higher level
-            }
-
-            guard let motion else {
-                logger.debug("No updated motion info")
-                return
-            }
-
-            onMotionUpdate(motion, destination: dest)
-        })
+        motionService.startDeviceMotionUpdates();
 
         return StartResult.Success
+    }
+
+    func pullOrientation() -> Optional<Quaternion> {
+        let q = motionService.deviceMotion?.attitude.quaternion;
+
+        guard let q else {
+            return Optional.none;
+        }
+
+        return Quaternion(q);
     }
 
     func stopMotionUpdates() -> StopResult {
@@ -85,16 +84,6 @@ class CoreMotionHeadTracker: NSObject, CMHeadphoneMotionManagerDelegate {
         default:
             logger.info("Motion data access permission is \(authStatus.rawValue): continuing")
             return true
-        }
-    }
-
-    func onMotionUpdate(_ motion: CMDeviceMotion, destination: MotionDataDestination) {
-        let q = motion.attitude.quaternion
-        logger.debug("Orientation: w: \(q.w), x: \(q.x), y: \(q.y), z: \(q.z)")
-
-        if !destination.push_quaternion(Quaternion(w: q.w, x: q.x, y: q.y, z: q.z)) {
-            logger.debug("Caller is no longer interested in updates - stopping")
-            doStopMotionUpdates()
         }
     }
 }
