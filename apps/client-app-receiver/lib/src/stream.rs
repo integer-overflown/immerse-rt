@@ -2,7 +2,9 @@ use std::error::Error;
 
 use gst::glib;
 use gst::prelude::*;
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
+
+use irt_ht_api as api;
 
 use crate::element;
 
@@ -76,6 +78,7 @@ fn handle_webrtc_pad(
 
 pub struct StreamController {
     pipeline: gst::Pipeline,
+    head_tracker: Option<api::PlatformHeadTracker>,
 }
 
 pub fn create(token: &str, widget: glib::ffi::gpointer) -> StreamController {
@@ -102,6 +105,7 @@ pub fn create(token: &str, widget: glib::ffi::gpointer) -> StreamController {
             None
         });
     }
+
     pipeline
         // It's important to add video_sink to the initial construction of the pipeline
         // to guarantee correct setup for the rendering during the actual stream.
@@ -114,7 +118,10 @@ pub fn create(token: &str, widget: glib::ffi::gpointer) -> StreamController {
         .add_many([src, video_sink])
         .expect("Could not add elements");
 
-    StreamController { pipeline }
+    StreamController {
+        pipeline,
+        head_tracker: api::platform_impl(),
+    }
 }
 
 impl StreamController {
@@ -125,6 +132,16 @@ impl StreamController {
 
     pub fn play(&self) -> Result<(), Box<dyn Error>> {
         self.pipeline.set_state(gst::State::Playing)?;
+
+        info!(
+            "Starting stream, head tracking is {}",
+            if self.head_tracker.is_some() {
+                "on"
+            } else {
+                "off"
+            }
+        );
+
         Ok(())
     }
 }
