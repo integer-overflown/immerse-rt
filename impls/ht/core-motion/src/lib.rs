@@ -33,6 +33,11 @@ mod ffi {
         z: f64,
     }
 
+    enum Orientation {
+        Some(Quaternion),
+        None,
+    }
+
     extern "Swift" {
         type CoreMotionHeadTracker;
 
@@ -43,7 +48,7 @@ mod ffi {
         fn start_motion_updates(&self) -> StartResult;
 
         #[swift_bridge(swift_name = "pullOrientation")]
-        fn pull_orientation(&self) -> Option<Quaternion>;
+        fn pull_orientation(&self) -> Orientation;
 
         #[swift_bridge(swift_name = "stopMotionUpdates")]
         fn stop_motion_updates(&self) -> StopResult;
@@ -80,7 +85,12 @@ impl ht::HeadTracker for HeadTracker {
     }
 
     fn pull_orientation(&self) -> Option<ht::UnitQuaternion> {
-        self.internal.pull_orientation().map(|q| q.into())
+        use ffi::Orientation;
+
+        match self.internal.pull_orientation() {
+            Orientation::Some(q) => Some(q.into()),
+            Orientation::None => None,
+        }
     }
 
     fn stop_motion_updates(&self) -> Result<(), ht::UnknownError> {

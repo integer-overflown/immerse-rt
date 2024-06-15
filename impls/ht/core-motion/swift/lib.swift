@@ -18,7 +18,7 @@ class CoreMotionHeadTracker: NSObject, CMHeadphoneMotionManagerDelegate {
         motionService.delegate = self
     }
 
-    func startMotionUpdates(dest: MotionDataDestination) -> StartResult {
+    func startMotionUpdates() -> StartResult {
         guard ensureServiceAvailability() else {
             return StartResult.Failure(HtError.Api(ApiError.NotAvailable))
         }
@@ -36,14 +36,14 @@ class CoreMotionHeadTracker: NSObject, CMHeadphoneMotionManagerDelegate {
         return StartResult.Success
     }
 
-    func pullOrientation() -> Optional<Quaternion> {
+    func pullOrientation() -> Orientation {
         let q = motionService.deviceMotion?.attitude.quaternion;
 
         guard let q else {
-            return Optional.none;
+            return Orientation.None;
         }
 
-        return Quaternion(q);
+        return Orientation.Some(Quaternion(q))
     }
 
     func stopMotionUpdates() -> StopResult {

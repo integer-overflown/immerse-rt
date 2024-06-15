@@ -1,2 +1,0 @@
-[build]
-rustflags = ["-L native=$<TARGET_FILE_DIR:ht_core_motion> -l static=$<TARGET_FILE_BASE_NAME:ht_core_motion>"]

@@ -15,4 +15,6 @@ target_link_libraries(
         irt_bridge
 )
 
+add_dependencies(ht_core_motion irt_make_bridge)
+
 target_compile_options(ht_core_motion PRIVATE -parse-as-library)

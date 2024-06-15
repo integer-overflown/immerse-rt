@@ -1,0 +1,4 @@
+pub fn link_swift_lib() {
+    println!("cargo:rustc-link-search=native=$<TARGET_FILE_DIR:ht_core_motion>");
+    println!("cargo:rustc-link-lib=static=$<TARGET_FILE_BASE_NAME:ht_core_motion>");
+}
