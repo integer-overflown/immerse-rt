@@ -1,6 +1,6 @@
-use std::ffi;
 use std::mem::ManuallyDrop;
 use std::str::Utf8Error;
+use std::{ffi, slice};
 
 use crate::stream::StreamController;
 use crate::{define_error_code, try_convert};
@@ -19,12 +19,21 @@ define_error_code!(
     CreateStreamErrorCode::InvalidUtf8
 );
 
+#[repr(C)]
+struct MemoryBuffer {
+    data: *const u8,
+    len: usize,
+}
+
 #[no_mangle]
 extern "C" fn create_stream(
     token: *const ffi::c_char,
     widget: *mut ffi::c_void,
+    hrir_bytes: MemoryBuffer,
 ) -> CreateStreamResult {
-    let controller = Box::new(crate::stream::create(try_convert!(token), widget));
+    let controller = Box::new(crate::stream::create(try_convert!(token), widget, unsafe {
+        slice::from_raw_parts(hrir_bytes.data, hrir_bytes.len)
+    }));
 
     CreateStreamResult::new_with_payload(Box::into_raw(controller))
 }

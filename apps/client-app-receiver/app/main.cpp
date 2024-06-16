@@ -49,6 +49,11 @@ class RequestFailed : public std::runtime_error {
               std::format("Request failed with {}", int(e)).c_str()) {}
 };
 
+class FailedToReadHRIR : public std::runtime_error {
+  public:
+    FailedToReadHRIR() : std::runtime_error("Cannot read HRIR resource") {}
+};
+
 class CreateStreamFailed : public std::runtime_error {
   public:
     explicit CreateStreamFailed(irt::CreateStreamErrorCode e)
@@ -111,10 +116,22 @@ int main(int argc, char *argv[]) {
                   utils::Defer _ =
                       std::bind_front(irt::free_request_result, result);
 
+                  QFile hrir(":/IRC_1002_C.bin");
+
+                  if (!hrir.open(QIODevice::ReadOnly)) {
+                      throw app::FailedToReadHRIR{};
+                  }
+
+                  auto bytes = hrir.readAll();
+
+                  auto buf = irt::MemoryBuffer{
+                      .data = reinterpret_cast<std::uint8_t *>(bytes.data()),
+                      .len = static_cast<std::uintptr_t>(bytes.length())};
+
                   if (result.success) {
                       qDebug(logging::app()) << "Creating stream object";
-                      return irt::create_stream(result.payload.value,
-                                                videoItem);
+                      return irt::create_stream(result.payload.value, videoItem,
+                                                buf);
                   }
 
                   throw app::RequestFailed(result.payload.error);

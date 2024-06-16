@@ -10,6 +10,7 @@ use gst::prelude::*;
 use gst::{glib, BusSyncReply, MessageView};
 use tracing::{debug, error, info, warn};
 
+use irt_gst_renderer::HrtfRenderer;
 use irt_ht_api as api;
 use irt_ht_api::PlatformHeadTracker;
 
@@ -19,6 +20,7 @@ fn handle_webrtc_pad(
     src_pad: &gst::Pad,
     pipeline: &gst::Pipeline,
     video_sink: &gst::Element,
+    hrtf_renderer: &gst::Element,
 ) -> Option<glib::Value> {
     debug!("Have new pad: {}", src_pad.name());
 
@@ -32,7 +34,7 @@ fn handle_webrtc_pad(
             let pad = video_sink.static_pad("sink").unwrap();
 
             if pad.is_linked() {
-                warn!("Video sink is already linked - ignoring this pad");
+                warn!("Duplicate video branch");
                 return None;
             }
 
@@ -54,7 +56,16 @@ fn handle_webrtc_pad(
                 .expect("Could not add elements");
         }
         Some("audio") => {
+            let pad = hrtf_renderer.static_pad("sink").unwrap();
+
+            if pad.is_linked() {
+                warn!("Duplicate audio branch");
+                return None;
+            }
+
             elements.push(element!("audioconvert"));
+            elements.push(element!("audioresample"));
+            elements.push(hrtf_renderer.clone());
             elements.push(element!("autoaudiosink"));
 
             pipeline
@@ -208,7 +219,7 @@ fn on_bus_message(
     BusSyncReply::Pass
 }
 
-pub fn create(token: &str, widget: glib::ffi::gpointer) -> StreamController {
+pub fn create(token: &str, widget: glib::ffi::gpointer, hrir_bytes: &[u8]) -> StreamController {
     let pipeline = gst::Pipeline::new();
     let src = gst::ElementFactory::make("livekitwebrtcsrc")
         .build()
@@ -216,6 +227,8 @@ pub fn create(token: &str, widget: glib::ffi::gpointer) -> StreamController {
 
     let signaller: glib::Object = src.property("signaller");
     signaller.set_property("auth-token", token);
+
+    let renderer = HrtfRenderer::new_with_raw_bytes(hrir_bytes).unwrap();
 
     let video_sink = gst::ElementFactory::make("qml6glsink")
         .property("widget", widget)
@@ -225,10 +238,11 @@ pub fn create(token: &str, widget: glib::ffi::gpointer) -> StreamController {
     {
         let pipeline = pipeline.clone();
         let video_sink = video_sink.clone();
+        let hrtf_render = renderer.element();
 
         src.connect("pad-added", false, move |args| {
             let pad: gst::Pad = args[1].get().unwrap();
-            handle_webrtc_pad(&pad, &pipeline, &video_sink);
+            handle_webrtc_pad(&pad, &pipeline, &video_sink, &hrtf_render);
             None
         });
     }

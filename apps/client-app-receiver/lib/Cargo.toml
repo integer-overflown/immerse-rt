@@ -12,6 +12,8 @@ ureq = { version = "2.9.7", features = ["json"] }
 app-protocol = { path = "../../app-protocol" }
 url = "2.5.0"
 irt-ht-api = { path = "../../../impls/ht/api" }
+irt-spatial = { path = "../../../libs/spatial" }
+irt-gst-renderer = { path = "../../../impls/renderers/gst" }
 
 [lib]
 crate-type = ["cdylib"]
