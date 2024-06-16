@@ -111,11 +111,14 @@ impl ht::HeadTracker for HeadTracker {
 // region FFI->interface conversions
 impl From<ffi::Quaternion> for ht::UnitQuaternion {
     fn from(value: ffi::Quaternion) -> Self {
+        // This essentially does two conversions at the same time:
+        // 1. ffi::Quaternion -> ht::Quaternion
+        // 2. RH Cartesian (CoreMotion) -> LH Cartesian (irt_ht_interface)
         let q = ht::Quaternion::new(
             value.w as f32,
             value.x as f32,
+            value.z as f32, // yz swapped on purpose, see (2) above
             value.y as f32,
-            value.z as f32,
         );
 
         // TODO(max-khm): this could use unchecked API is CoreMotion already outputs unit quaternions
