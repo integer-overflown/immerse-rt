@@ -6,7 +6,7 @@ use gst::prelude::*;
 
 use irt_spatial::{Renderer, Scene, Source};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct HrtfRenderer {
     element: gst::Element,
 }

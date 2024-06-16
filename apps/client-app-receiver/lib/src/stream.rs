@@ -10,7 +10,7 @@ use tracing::{debug, error, info, warn};
 use irt_gst_renderer::HrtfRenderer;
 use irt_ht_api as api;
 use irt_ht_api::PlatformHeadTracker;
-use irt_spatial::Scene;
+use irt_spatial::{na::Vector3, Listener, Orientation, Scene, Soundscape};
 
 use crate::element;
 
@@ -139,7 +139,15 @@ fn wait_for_initial_scene(rx: &Receiver<StateChangeMessage>) -> Option<Scene> {
     scene
 }
 
-fn ht_thread_fn(rx: &Receiver<StateChangeMessage>, head_tracker: &PlatformHeadTracker) {
+fn initial_listener() -> Listener {
+    Orientation::from_axis_angle(&Vector3::z_axis(), 0.0).into()
+}
+
+fn ht_thread_fn(
+    rx: &Receiver<StateChangeMessage>,
+    head_tracker: &PlatformHeadTracker,
+    hrtf_renderer: &HrtfRenderer,
+) {
     debug!("Head-tracking thread has started");
 
     let Some(scene) = wait_for_initial_scene(rx) else {
@@ -153,6 +161,8 @@ fn ht_thread_fn(rx: &Receiver<StateChangeMessage>, head_tracker: &PlatformHeadTr
         return;
     }
 
+    let mut soundscape = Soundscape::new(scene, initial_listener(), hrtf_renderer.clone());
+
     loop {
         if matches!(rx.try_recv(), Err(TryRecvError::Disconnected)) {
             debug!("Sender has hung up");
@@ -162,6 +172,7 @@ fn ht_thread_fn(rx: &Receiver<StateChangeMessage>, head_tracker: &PlatformHeadTr
         match head_tracker.pull_orientation() {
             Some(q) => {
                 debug!("orientation: q: {q}");
+                soundscape.set_listener(q.into());
             }
             None => {
                 debug!("orientation: none");
@@ -178,7 +189,7 @@ fn ht_thread_fn(rx: &Receiver<StateChangeMessage>, head_tracker: &PlatformHeadTr
     debug!("Exiting");
 }
 
-fn create_ht_thread() -> Option<HtThreadConfig> {
+fn create_ht_thread(hrtf_renderer: HrtfRenderer) -> Option<HtThreadConfig> {
     let Some(head_tracker) = api::platform_impl() else {
         info!("No platform head-tracking implementation: dynamic spatial audio is disabled");
         return None;
@@ -190,7 +201,7 @@ fn create_ht_thread() -> Option<HtThreadConfig> {
 
     let handle = thread::Builder::new()
         .name("irt-ht-thread".to_owned())
-        .spawn(move || ht_thread_fn(&rx, &head_tracker))
+        .spawn(move || ht_thread_fn(&rx, &head_tracker, &hrtf_renderer))
         .unwrap();
 
     Some(HtThreadConfig { sender: tx, handle })
@@ -295,7 +306,7 @@ pub fn create(token: &str, widget: glib::ffi::gpointer, hrir_bytes: &[u8]) -> St
         .add_many([src, video_sink])
         .expect("Could not add elements");
 
-    let ht_thread = create_ht_thread();
+    let ht_thread = create_ht_thread(renderer.clone());
 
     if let Some(config) = ht_thread.as_ref() {
         let pipeline = pipeline.clone();
