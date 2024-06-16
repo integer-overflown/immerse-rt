@@ -24,17 +24,6 @@ pub enum SetupError {
     ),
 }
 
-#[derive(thiserror::Error, Debug)]
-pub enum AttachError {
-    #[error("unrecognized element")]
-    UnrecognizedElement,
-    #[error("unexpected element: instance of {expected} is required, got: ${actual}")]
-    UnsupportedElement {
-        actual: String,
-        expected: &'static str,
-    },
-}
-
 trait ToValueArray {
     fn to_value_array(&self) -> gst::Array;
 }
