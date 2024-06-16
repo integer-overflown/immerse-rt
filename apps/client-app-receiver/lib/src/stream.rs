@@ -1,5 +1,8 @@
 use std::error::Error;
-use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Condvar, Mutex,
+};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
@@ -80,15 +83,10 @@ fn handle_webrtc_pad(
     None
 }
 
-#[derive(Debug)]
-enum StateChangeMessage {
-    StartedPlaying,
-    ShuttingDown,
-}
-
 struct HtThreadConfig {
-    handle: Option<JoinHandle<()>>,
-    sender: Sender<StateChangeMessage>,
+    handle: JoinHandle<()>,
+    start_condition: Arc<(Mutex<bool>, Condvar)>,
+    running: Arc<AtomicBool>,
 }
 
 pub struct StreamController {
@@ -98,20 +96,25 @@ pub struct StreamController {
 
 const SAMPLING_RESOLUTION: Duration = Duration::from_millis(100);
 
-fn ht_thread_fn(rx: &Receiver<StateChangeMessage>, head_tracker: &PlatformHeadTracker) {
-    use StateChangeMessage::*;
+fn ht_thread_fn(
+    start_condition: &Arc<(Mutex<bool>, Condvar)>,
+    running: &Arc<AtomicBool>,
+    head_tracker: &PlatformHeadTracker,
+) {
     debug!("Head-tracking thread has started");
 
-    loop {
-        let Ok(message) = rx.recv() else {
-            debug!("Sending counterpart has dropped - quitting");
-            return;
-        };
+    let (lock, condvar) = &**start_condition;
 
-        if matches!(message, StartedPlaying | ShuttingDown) {
-            debug!("Unblocking, reason: {:?}", message);
-            break;
-        }
+    let mut started = lock.lock().unwrap();
+    while !*started {
+        started = condvar.wait(started).unwrap();
+    }
+
+    debug!("Unblocked");
+
+    if !running.load(Ordering::Acquire) {
+        debug!("Exiting early");
+        return;
     }
 
     if let Err(e) = head_tracker.start_motion_updates() {
@@ -119,15 +122,7 @@ fn ht_thread_fn(rx: &Receiver<StateChangeMessage>, head_tracker: &PlatformHeadTr
         return;
     }
 
-    loop {
-        if matches!(
-            rx.try_recv(),
-            Ok(ShuttingDown) | Err(mpsc::TryRecvError::Disconnected)
-        ) {
-            debug!("Quitting loop");
-            break;
-        }
-
+    while running.load(Ordering::Acquire) {
         match head_tracker.pull_orientation() {
             Some(q) => {
                 debug!("orientation: q: {q}");
@@ -140,9 +135,7 @@ fn ht_thread_fn(rx: &Receiver<StateChangeMessage>, head_tracker: &PlatformHeadTr
         thread::sleep(SAMPLING_RESOLUTION);
     }
 
-    if let Err(e) = head_tracker.stop_motion_updates() {
-        warn!("Could not stop motion updates: {e}");
-    }
+    debug!("Exiting");
 }
 
 fn create_ht_thread() -> Option<HtThreadConfig> {
@@ -153,24 +146,30 @@ fn create_ht_thread() -> Option<HtThreadConfig> {
 
     info!("Have platform head-tracking implementation: dynamic spatial audio is enabled");
 
-    let (tx, rx) = mpsc::channel();
+    let start_condition = Arc::new((Mutex::new(false), Condvar::new()));
+    let running = Arc::new(AtomicBool::new(true));
 
-    let ht_thread_handle = thread::Builder::new()
+    let handle = thread::Builder::new()
         .name("irt-ht-thread".to_owned())
-        .spawn(move || ht_thread_fn(&rx, &head_tracker))
+        .spawn({
+            let start_condition = start_condition.clone();
+            let running = running.clone();
+
+            move || ht_thread_fn(&start_condition, &running, &head_tracker)
+        })
         .unwrap();
 
     Some(HtThreadConfig {
-        sender: tx,
-        handle: Some(ht_thread_handle),
+        running,
+        start_condition,
+        handle,
     })
 }
 
-struct MessageHandlerData<'a>(&'a Sender<StateChangeMessage>, &'a gst::Pipeline);
-
 fn on_bus_message(
     message: &gst::Message,
-    MessageHandlerData(tx, pipeline): MessageHandlerData,
+    start_condition: &Arc<(Mutex<bool>, Condvar)>,
+    pipeline: &gst::Pipeline,
 ) -> BusSyncReply {
     match message.view() {
         MessageView::StateChanged(state_changed) => 'b: {
@@ -189,9 +188,12 @@ fn on_bus_message(
                 break 'b;
             }
 
-            if let Err(e) = tx.send(StateChangeMessage::StartedPlaying) {
-                warn!("Receiver has already hang up: {e}");
-            }
+            let (lock, condvar) = &**start_condition;
+            let mut started = lock.lock().unwrap();
+
+            *started = true;
+
+            condvar.notify_one();
         }
         MessageView::Error(error) => {
             error!(
@@ -246,14 +248,14 @@ pub fn create(token: &str, widget: glib::ffi::gpointer) -> StreamController {
     let ht_thread = create_ht_thread();
 
     if let Some(config) = ht_thread.as_ref() {
-        let tx = config.sender.clone();
+        let start_condition = config.start_condition.clone();
         let pipeline = pipeline.clone();
 
         pipeline
             .bus()
             .unwrap()
             .set_sync_handler(move |_bus, message| {
-                on_bus_message(message, MessageHandlerData(&tx, &pipeline))
+                on_bus_message(message, &start_condition, &pipeline)
             });
     }
 
@@ -279,17 +281,30 @@ impl Drop for StreamController {
     fn drop(&mut self) {
         debug!("Shutting down");
 
-        let Some(HtThreadConfig { sender, handle }) = self.ht_thread.as_mut() else {
+        let Some(HtThreadConfig {
+            running,
+            start_condition,
+            handle,
+        }) = self.ht_thread.take()
+        else {
             return;
         };
 
-        let _ = sender.send(StateChangeMessage::ShuttingDown);
+        let (lock, condvar) = &*start_condition;
 
-        let Err(_) = handle.take().map_or(Ok(()), JoinHandle::<()>::join) else {
-            debug!("Head-tracking thread is finished");
-            return;
-        };
+        running.store(false, Ordering::Release);
 
-        warn!("Head-tracking thread panicked on shutdown");
+        let mut started = lock.lock().unwrap();
+        *started = true;
+        condvar.notify_one();
+
+        match handle.join() {
+            Ok(_) => {
+                info!("Head-tracking thread has finished")
+            }
+            Err(_) => {
+                warn!("Head-tracking thread panicked on shutdown");
+            }
+        }
     }
 }
