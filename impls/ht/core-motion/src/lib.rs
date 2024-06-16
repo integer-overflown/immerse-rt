@@ -121,8 +121,8 @@ impl From<ffi::Quaternion> for ht::UnitQuaternion {
             value.y as f32,
         );
 
-        // TODO(max-khm): this could use unchecked API is CoreMotion already outputs unit quaternions
-        Self::new_normalize(q)
+        // CoreMotion already outputs unit quaternions, so normalization is skipped
+        Self::new_unchecked(q)
     }
 }
 
