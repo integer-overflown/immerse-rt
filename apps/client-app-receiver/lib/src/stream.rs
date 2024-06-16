@@ -1,8 +1,5 @@
 use std::error::Error;
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc, Condvar, Mutex,
-};
+use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
@@ -13,6 +10,7 @@ use tracing::{debug, error, info, warn};
 use irt_gst_renderer::HrtfRenderer;
 use irt_ht_api as api;
 use irt_ht_api::PlatformHeadTracker;
+use irt_spatial::Scene;
 
 use crate::element;
 
@@ -94,10 +92,15 @@ fn handle_webrtc_pad(
     None
 }
 
+#[derive(Debug)]
+enum StateChangeMessage {
+    StartedPlaying,
+    HaveInitialScene(Scene),
+}
+
 struct HtThreadConfig {
     handle: JoinHandle<()>,
-    start_condition: Arc<(Mutex<bool>, Condvar)>,
-    running: Arc<AtomicBool>,
+    sender: Sender<StateChangeMessage>,
 }
 
 pub struct StreamController {
@@ -107,33 +110,55 @@ pub struct StreamController {
 
 const SAMPLING_RESOLUTION: Duration = Duration::from_millis(100);
 
-fn ht_thread_fn(
-    start_condition: &Arc<(Mutex<bool>, Condvar)>,
-    running: &Arc<AtomicBool>,
-    head_tracker: &PlatformHeadTracker,
-) {
+fn wait_for_initial_scene(rx: &Receiver<StateChangeMessage>) -> Option<Scene> {
+    let mut playing = false;
+    let mut scene = None::<Scene>;
+
+    loop {
+        let Ok(message) = rx.recv() else {
+            debug!("Starting loop: sender counterpart has hung up");
+            return None;
+        };
+
+        match message {
+            StateChangeMessage::StartedPlaying => {
+                debug!("Started playing");
+                playing = true;
+            }
+            StateChangeMessage::HaveInitialScene(s) => {
+                debug!("Have initial scene");
+                scene = Some(s);
+            }
+        }
+
+        if playing && scene.is_some() {
+            break;
+        }
+    }
+
+    scene
+}
+
+fn ht_thread_fn(rx: &Receiver<StateChangeMessage>, head_tracker: &PlatformHeadTracker) {
     debug!("Head-tracking thread has started");
 
-    let (lock, condvar) = &**start_condition;
-
-    let mut started = lock.lock().unwrap();
-    while !*started {
-        started = condvar.wait(started).unwrap();
-    }
-
-    debug!("Unblocked");
-
-    if !running.load(Ordering::Acquire) {
-        debug!("Exiting early");
+    let Some(scene) = wait_for_initial_scene(rx) else {
         return;
-    }
+    };
+
+    debug!("Unblocked, initial scene: {scene:?}");
 
     if let Err(e) = head_tracker.start_motion_updates() {
         error!("Failed to start receiving motion updates: {e}");
         return;
     }
 
-    while running.load(Ordering::Acquire) {
+    loop {
+        if matches!(rx.try_recv(), Err(TryRecvError::Disconnected)) {
+            debug!("Sender has hung up");
+            break;
+        }
+
         match head_tracker.pull_orientation() {
             Some(q) => {
                 debug!("orientation: q: {q}");
@@ -157,29 +182,19 @@ fn create_ht_thread() -> Option<HtThreadConfig> {
 
     info!("Have platform head-tracking implementation: dynamic spatial audio is enabled");
 
-    let start_condition = Arc::new((Mutex::new(false), Condvar::new()));
-    let running = Arc::new(AtomicBool::new(true));
+    let (tx, rx) = mpsc::channel();
 
     let handle = thread::Builder::new()
         .name("irt-ht-thread".to_owned())
-        .spawn({
-            let start_condition = start_condition.clone();
-            let running = running.clone();
-
-            move || ht_thread_fn(&start_condition, &running, &head_tracker)
-        })
+        .spawn(move || ht_thread_fn(&rx, &head_tracker))
         .unwrap();
 
-    Some(HtThreadConfig {
-        running,
-        start_condition,
-        handle,
-    })
+    Some(HtThreadConfig { sender: tx, handle })
 }
 
 fn on_bus_message(
     message: &gst::Message,
-    start_condition: &Arc<(Mutex<bool>, Condvar)>,
+    sender: &Sender<StateChangeMessage>,
     pipeline: &gst::Pipeline,
 ) -> BusSyncReply {
     match message.view() {
@@ -199,12 +214,7 @@ fn on_bus_message(
                 break 'b;
             }
 
-            let (lock, condvar) = &**start_condition;
-            let mut started = lock.lock().unwrap();
-
-            *started = true;
-
-            condvar.notify_one();
+            let _ = sender.send(StateChangeMessage::StartedPlaying);
         }
         MessageView::Error(error) => {
             error!(
@@ -219,15 +229,24 @@ fn on_bus_message(
     BusSyncReply::Pass
 }
 
-fn on_renderer_src_event(renderer: &gst::Element, event: &gst::Event) -> PadProbeReturn {
+fn on_renderer_src_event(
+    event: &gst::Event,
+    sender: &Sender<StateChangeMessage>,
+    renderer: &gst::Element,
+) -> PadProbeReturn {
     let EventView::Caps(_) = event.view() else {
         return PadProbeReturn::Ok;
     };
 
     debug!("Have caps event on src pad");
 
-    let scene = irt_gst_renderer::current_scene(renderer);
-    debug!("Initial scene: {scene:?}");
+    let Some(scene) = irt_gst_renderer::current_scene(renderer) else {
+        warn!("No initial scene");
+        return PadProbeReturn::Ok;
+    };
+
+    debug!("Received initial scene");
+    let _ = sender.send(StateChangeMessage::HaveInitialScene(scene));
 
     PadProbeReturn::Remove
 }
@@ -260,15 +279,6 @@ pub fn create(token: &str, widget: glib::ffi::gpointer, hrir_bytes: &[u8]) -> St
         });
     }
 
-    {
-        let element = renderer.element();
-        let src_pad = element.static_pad("src").unwrap();
-
-        src_pad.add_probe(PadProbeType::EVENT_DOWNSTREAM, move |_pad, info| {
-            on_renderer_src_event(&element, info.event().unwrap())
-        });
-    }
-
     pipeline
         // It's important to add video_sink to the initial construction of the pipeline
         // to guarantee correct setup for the rendering during the actual stream.
@@ -284,15 +294,22 @@ pub fn create(token: &str, widget: glib::ffi::gpointer, hrir_bytes: &[u8]) -> St
     let ht_thread = create_ht_thread();
 
     if let Some(config) = ht_thread.as_ref() {
-        let start_condition = config.start_condition.clone();
         let pipeline = pipeline.clone();
 
-        pipeline
-            .bus()
-            .unwrap()
-            .set_sync_handler(move |_bus, message| {
-                on_bus_message(message, &start_condition, &pipeline)
-            });
+        pipeline.bus().unwrap().set_sync_handler({
+            let sender = config.sender.clone();
+
+            move |_bus, message| on_bus_message(message, &sender, &pipeline)
+        });
+
+        let element = renderer.element();
+        let src_pad = element.static_pad("src").unwrap();
+
+        src_pad.add_probe(PadProbeType::EVENT_DOWNSTREAM, {
+            let sender = config.sender.clone();
+
+            move |_pad, info| on_renderer_src_event(info.event().unwrap(), &sender, &element)
+        });
     }
 
     StreamController {
@@ -317,22 +334,22 @@ impl Drop for StreamController {
     fn drop(&mut self) {
         debug!("Shutting down");
 
-        let Some(HtThreadConfig {
-            running,
-            start_condition,
-            handle,
-        }) = self.ht_thread.take()
-        else {
+        if self.pipeline.set_state(gst::State::Null).is_err() {
+            warn!("Failed to transition to NULL - trying to proceed anyway");
+        }
+
+        if let Some(bus) = self.pipeline.bus() {
+            bus.unset_sync_handler();
+        }
+
+        let Some(HtThreadConfig { sender, handle }) = self.ht_thread.take() else {
+            debug!("No thread was running - returning immediately");
             return;
         };
 
-        let (lock, condvar) = &*start_condition;
+        drop(sender);
 
-        running.store(false, Ordering::Release);
-
-        let mut started = lock.lock().unwrap();
-        *started = true;
-        condvar.notify_one();
+        debug!("Joining head-tracking thread");
 
         match handle.join() {
             Ok(_) => {
