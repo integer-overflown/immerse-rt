@@ -59,6 +59,10 @@ pub struct HeadTracker {
     internal: ffi::CoreMotionHeadTracker,
 }
 
+unsafe impl Send for HeadTracker {}
+
+unsafe impl Sync for HeadTracker {}
+
 impl HeadTracker {
     pub fn new() -> Self {
         let internal = ffi::CoreMotionHeadTracker::new();

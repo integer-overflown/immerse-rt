@@ -17,6 +17,11 @@ add_executable(
         lib/config/clang.h
 )
 
+set_target_properties(client-app-receiver
+        PROPERTIES
+        MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/config/Info.plist.in
+)
+
 add_subdirectory(lib)
 
 target_link_libraries(client-app-receiver PRIVATE

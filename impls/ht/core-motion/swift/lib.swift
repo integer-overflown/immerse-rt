@@ -18,6 +18,11 @@ class CoreMotionHeadTracker: NSObject, CMHeadphoneMotionManagerDelegate {
         motionService.delegate = self
     }
 
+    deinit {
+        logger.debug("Destroying head-tracker instance")
+        doStopMotionUpdates()
+    }
+
     func startMotionUpdates() -> StartResult {
         guard ensureServiceAvailability() else {
             return StartResult.Failure(HtError.Api(ApiError.NotAvailable))

@@ -4,7 +4,7 @@ use tracing::info;
 
 use irt_ht_interface as ht;
 
-pub type PlatformHeadTracker = Box<dyn ht::HeadTracker>;
+pub type PlatformHeadTracker = Box<dyn ht::HeadTracker + Send + Sync>;
 
 type PlatformHtImpl = Option<PlatformHeadTracker>;
 

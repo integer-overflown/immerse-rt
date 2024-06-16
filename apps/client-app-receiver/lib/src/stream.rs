@@ -1,12 +1,14 @@
 use std::error::Error;
-use std::sync::mpsc::{self, Sender};
+use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread::{self, JoinHandle};
+use std::time::Duration;
 
 use gst::prelude::*;
 use gst::{glib, BusSyncReply, MessageView};
 use tracing::{debug, error, info, warn};
 
 use irt_ht_api as api;
+use irt_ht_api::PlatformHeadTracker;
 
 use crate::element;
 
@@ -94,8 +96,57 @@ pub struct StreamController {
     ht_thread: Option<HtThreadConfig>,
 }
 
+const SAMPLING_RESOLUTION: Duration = Duration::from_millis(100);
+
+fn ht_thread_fn(rx: &Receiver<StateChangeMessage>, head_tracker: &PlatformHeadTracker) {
+    use StateChangeMessage::*;
+    debug!("Head-tracking thread has started");
+
+    loop {
+        let Ok(message) = rx.recv() else {
+            debug!("Sending counterpart has dropped - quitting");
+            return;
+        };
+
+        if matches!(message, StartedPlaying | ShuttingDown) {
+            debug!("Unblocking, reason: {:?}", message);
+            break;
+        }
+    }
+
+    if let Err(e) = head_tracker.start_motion_updates() {
+        error!("Failed to start receiving motion updates: {e}");
+        return;
+    }
+
+    loop {
+        if matches!(
+            rx.try_recv(),
+            Ok(ShuttingDown) | Err(mpsc::TryRecvError::Disconnected)
+        ) {
+            debug!("Quitting loop");
+            break;
+        }
+
+        match head_tracker.pull_orientation() {
+            Some(q) => {
+                debug!("orientation: q: {q}");
+            }
+            None => {
+                debug!("orientation: none");
+            }
+        }
+
+        thread::sleep(SAMPLING_RESOLUTION);
+    }
+
+    if let Err(e) = head_tracker.stop_motion_updates() {
+        warn!("Could not stop motion updates: {e}");
+    }
+}
+
 fn create_ht_thread() -> Option<HtThreadConfig> {
-    let Some(_ht_api_impl) = api::platform_impl() else {
+    let Some(head_tracker) = api::platform_impl() else {
         info!("No platform head-tracking implementation: dynamic spatial audio is disabled");
         return None;
     };
@@ -106,22 +157,7 @@ fn create_ht_thread() -> Option<HtThreadConfig> {
 
     let ht_thread_handle = thread::Builder::new()
         .name("irt-ht-thread".to_owned())
-        .spawn(move || {
-            use StateChangeMessage::*;
-            debug!("Head-tracking thread has started");
-
-            loop {
-                let Ok(message) = rx.recv() else {
-                    debug!("Sending counterpart has dropped - quitting");
-                    return;
-                };
-
-                if matches!(message, StartedPlaying | ShuttingDown) {
-                    debug!("Unblocking, reason: {:?}", message);
-                    break;
-                }
-            }
-        })
+        .spawn(move || ht_thread_fn(&rx, &head_tracker))
         .unwrap();
 
     Some(HtThreadConfig {
