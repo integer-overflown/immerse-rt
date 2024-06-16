@@ -83,6 +83,19 @@ pub trait HeadTracker {
     ///
     /// Returns [None] if there is no motion data, otherwise the returned value will contain the
     /// listener's orientation, represented as a unit quaternion.
+    ///
+    /// # Coordinate system
+    ///
+    /// All head-tracking implementation shall report orientation in <em>left-handed</em>
+    /// Cartesian coordinate system, where xz plane matches the screen plane and
+    /// y-axis is located perpendicular to it, facing the direction opposite to the user.
+    ///
+    /// The illustration can be found in the module [source tree](https://github.com/integer-overflown/immerse-rt/tree/main/libs/ht/docs/coordinate-system.png).
+    ///
+    /// This implies that implementations may need to apply additional conversion
+    /// if the underlying API uses a different coordinate system.
+    ///
+    /// This can be achieved by swapping coordinates accordingly.
     fn pull_orientation(&self) -> Option<UnitQuaternion>;
 
     /// Stop receiving motion updates.
