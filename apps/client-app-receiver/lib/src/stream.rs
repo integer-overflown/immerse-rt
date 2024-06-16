@@ -171,6 +171,10 @@ fn ht_thread_fn(rx: &Receiver<StateChangeMessage>, head_tracker: &PlatformHeadTr
         thread::sleep(SAMPLING_RESOLUTION);
     }
 
+    if let Err(e) = head_tracker.stop_motion_updates() {
+        warn!("Failed to stop motion updates: {e}");
+    }
+
     debug!("Exiting");
 }
 
