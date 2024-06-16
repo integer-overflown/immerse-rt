@@ -7,7 +7,7 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use gst::prelude::*;
-use gst::{glib, BusSyncReply, MessageView};
+use gst::{glib, BusSyncReply, EventView, MessageView, PadProbeReturn, PadProbeType};
 use tracing::{debug, error, info, warn};
 
 use irt_gst_renderer::HrtfRenderer;
@@ -219,6 +219,19 @@ fn on_bus_message(
     BusSyncReply::Pass
 }
 
+fn on_renderer_src_event(renderer: &gst::Element, event: &gst::Event) -> PadProbeReturn {
+    let EventView::Caps(_) = event.view() else {
+        return PadProbeReturn::Ok;
+    };
+
+    debug!("Have caps event on src pad");
+
+    let scene = irt_gst_renderer::current_scene(renderer);
+    debug!("Initial scene: {scene:?}");
+
+    PadProbeReturn::Remove
+}
+
 pub fn create(token: &str, widget: glib::ffi::gpointer, hrir_bytes: &[u8]) -> StreamController {
     let pipeline = gst::Pipeline::new();
     let src = gst::ElementFactory::make("livekitwebrtcsrc")
@@ -244,6 +257,15 @@ pub fn create(token: &str, widget: glib::ffi::gpointer, hrir_bytes: &[u8]) -> St
             let pad: gst::Pad = args[1].get().unwrap();
             handle_webrtc_pad(&pad, &pipeline, &video_sink, &hrtf_render);
             None
+        });
+    }
+
+    {
+        let element = renderer.element();
+        let src_pad = element.static_pad("src").unwrap();
+
+        src_pad.add_probe(PadProbeType::EVENT_DOWNSTREAM, move |_pad, info| {
+            on_renderer_src_event(&element, info.event().unwrap())
         });
     }
 

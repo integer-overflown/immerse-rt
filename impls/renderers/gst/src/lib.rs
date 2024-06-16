@@ -4,7 +4,7 @@ use std::{fs, io};
 
 use gst::prelude::*;
 
-use irt_spatial::{Renderer, Scene};
+use irt_spatial::{Renderer, Scene, Source};
 
 #[derive(Debug)]
 pub struct HrtfRenderer {
@@ -73,4 +73,33 @@ impl Renderer for HrtfRenderer {
         self.element
             .set_property("spatial-objects", scene.to_value_array());
     }
+}
+
+pub fn current_scene(renderer: &gst::Element) -> Option<Scene> {
+    let array: gst::Array = renderer.property("spatial-objects");
+
+    if array.is_empty() {
+        return None;
+    }
+
+    let sources = array
+        .iter()
+        .map(|value| {
+            let s: gst::Structure = value.get().unwrap();
+
+            let coords = [
+                s.get::<f32>("x").unwrap(),
+                s.get::<f32>("y").unwrap(),
+                s.get::<f32>("z").unwrap(),
+            ];
+
+            let distance_gain = s.get::<f32>("distance-gain").unwrap();
+
+            Source::with_location(coords)
+                .distance_gain(distance_gain)
+                .build()
+        })
+        .collect();
+
+    Some(Scene::new(sources))
 }
