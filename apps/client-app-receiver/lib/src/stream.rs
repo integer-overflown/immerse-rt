@@ -241,7 +241,7 @@ fn on_bus_message(
         _ => {}
     }
 
-    BusSyncReply::Pass
+    BusSyncReply::Drop
 }
 
 fn on_renderer_src_event(
