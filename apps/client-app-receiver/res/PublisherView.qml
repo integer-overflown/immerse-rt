@@ -4,6 +4,8 @@ import QtQuick.Dialogs
 import QtQuick.Controls
 import QtQuick.Layouts
 
+import com.github.immerse_rt
+
 Item {
     id: screen
 
@@ -189,24 +191,44 @@ Item {
                 spacing: 8
 
                 Text {
-                    Layout.fillWidth: true
-
                     color: "white"
-                    font.pointSize: 48
-                    text: "Verifying"
+                    font.pointSize: 24
+                    text: qsTr("Let's see if we got it right 🧐")
                 }
 
-                Button {
-                    text: "Back"
-                    onClicked: {
-                        screen.state = "selecting-source"
+                Text {
+                    color: "white"
+                    font.pointSize: 18
+                    text: "Selected file: " + `<b>${AppQmlUtils.toLocalFilePath(fileDialog.selectedFile)}</b>`
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 4
+
+                    Button {
+                        Layout.alignment: Qt.AlignVCenter
+                        text: "Back"
+
+                        onClicked: {
+                            screen.state = "selecting-source"
+                        }
                     }
-                }
 
-                Button {
-                    text: "Forward"
-                    onClicked: {
-                        screen.state = "streaming"
+                    Button {
+                        Layout.alignment: Qt.AlignVCenter
+                        Layout.fillWidth: true
+
+                        text: "Start streaming"
+
+                        onClicked: {
+                            screen.state = "streaming"
+                        }
+
+                        HoverHandler {
+                            acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                            cursorShape: Qt.PointingHandCursor
+                        }
                     }
                 }
             }
@@ -220,14 +242,19 @@ Item {
 
             ColumnLayout {
                 anchors.centerIn: parent
-                spacing: 8
+                spacing: 16
 
                 Text {
                     text: "Streaming..."
+                    color: "white"
+                    font.pointSize: 36
                 }
 
                 Button {
-                    text: "Back"
+                    Layout.fillWidth: true
+
+                    text: "Stop streaming"
+
                     onClicked: {
                         screen.state = "selecting-source"
                     }

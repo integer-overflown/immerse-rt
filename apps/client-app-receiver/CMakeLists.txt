@@ -9,12 +9,12 @@ enable_language(CXX)
 
 find_package(Qt6 COMPONENTS Core Qml Quick Concurrent REQUIRED)
 
-add_executable(
+qt_add_executable(
         client-app-receiver
         MACOSX_BUNDLE
         app/main.cpp
         res/qml.qrc
-        lib/config/clang.h
+        app/qml_utils.h
 )
 
 set_target_properties(client-app-receiver
@@ -31,3 +31,12 @@ target_link_libraries(client-app-receiver PRIVATE
         Qt::Concurrent
         client_lib_bridge
 )
+
+qt_add_qml_module(client-app-receiver
+        URI com.github.immerse_rt
+        SOURCES app/qml_utils.h
+        RESOURCE_PREFIX /
+        VERSION 1.0
+)
+
+target_include_directories(client-app-receiver PRIVATE app)

@@ -6,5 +6,6 @@
         <file>IRC_1002_C.bin</file>
         <file>PublisherView.qml</file>
         <file>SubscriberView.qml</file>
+        <file>images/ic_left_arrow.svg</file>
     </qresource>
 </RCC>
