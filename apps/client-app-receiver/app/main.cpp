@@ -97,6 +97,7 @@ int main(int argc, char *argv[]) {
         return CannotLoadQml;
     }
 
+#if 0
     auto rootObject = static_cast<QQuickWindow *>(engine.rootObjects().first());
     auto *videoItem = rootObject->findChild<QQuickItem *>("videoItem");
 
@@ -179,6 +180,7 @@ int main(int argc, char *argv[]) {
             qCritical(logging::app()) << "Failed with exception:" << e.what();
             QCoreApplication::exit(FailedToConnect);
         });
+#endif
 
     return QCoreApplication::exec();
 }

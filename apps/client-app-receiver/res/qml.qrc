@@ -3,5 +3,8 @@
     <qresource prefix="/">
         <file>main.qml</file>
         <file>IRC_1002_C.bin</file>
+        <file>IRC_1002_C.bin</file>
+        <file>PublisherView.qml</file>
+        <file>SubscriberView.qml</file>
     </qresource>
 </RCC>
