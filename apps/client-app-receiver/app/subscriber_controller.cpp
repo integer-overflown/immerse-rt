@@ -34,7 +34,7 @@ class FailedToReadHRIR : public std::runtime_error {
 
 class CreateStreamFailed : public std::runtime_error {
   public:
-    explicit CreateStreamFailed(irt::CreateStreamErrorCode e)
+    explicit CreateStreamFailed(irt::CreateSubscriberErrorCode e)
         : std::runtime_error(
               std::format("Cannot create stream: {}", int(e)).c_str()) {}
 };
@@ -88,13 +88,13 @@ void SubscriberController::connectToStream(QQuickItem *videoSink) {
 
                   if (result.success) {
                       qDebug(logging::sub()) << "Creating stream object";
-                      return irt::create_stream(result.payload.value, videoSink,
-                                                buf);
+                      return irt::create_subscriber_stream(result.payload.value,
+                                                           videoSink, buf);
                   }
 
                   throw app::RequestFailed(result.payload.error);
               })
-        .then([](irt::CreateStreamResult result) {
+        .then([](irt::CreateSubscriberResult result) {
             if (result.success) {
                 qDebug(logging::sub()) << "Unwrapping stream controller";
                 return result.payload.value;
@@ -112,12 +112,12 @@ void SubscriberController::connectToStream(QQuickItem *videoSink) {
 
                 QObject::connect(this, &QObject::destroyed, [controller] {
                     qDebug(logging::sub()) << "Destroying stream";
-                    irt::free_stream(controller);
+                    irt::free_subscriber_stream(controller);
                 });
 
                 videoSink->window()->scheduleRenderJob(
                     QRunnable::create([p = std::move(p), controller]() mutable {
-                        if (!irt::setup_stream(controller)) {
+                        if (!irt::setup_subscriber_stream(controller)) {
                             throw app::SetupStreamFailed{};
                         }
 
@@ -131,7 +131,7 @@ void SubscriberController::connectToStream(QQuickItem *videoSink) {
         .unwrap()
         .then(this,
               [this](irt::StreamController *controller) {
-                  if (!irt::start_stream(controller)) {
+                  if (!irt::start_subscriber_stream(controller)) {
                       throw app::StartStreamFailed{};
                   }
 
