@@ -3,7 +3,11 @@
 
 #include <functional>
 
+#include <QFuture>
+#include <QtConcurrent>
 #include <QtGlobal>
+
+#include "bridge/irt.h"
 
 namespace app::utils {
 template <typename Fn> class Defer {
@@ -17,6 +21,13 @@ template <typename Fn> class Defer {
   private:
     Fn fn_;
 };
+
+inline QFuture<irt::RequestResult> request_token(const char *serverUrl,
+                                                 irt::RoomOptions options) {
+    return QtConcurrent::run([serverUrl, options] {
+        return irt::request_token(serverUrl, options);
+    });
+}
 } // namespace app::utils
 
 #endif // IMMERSE_RT_UTILS_H

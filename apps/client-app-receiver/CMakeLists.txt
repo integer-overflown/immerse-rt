@@ -23,6 +23,7 @@ qt_add_executable(
         app/subscriber_controller.cpp
         app/constants.h
         app/utils.h
+        app/exceptions.h
 )
 
 set_target_properties(client-app-receiver

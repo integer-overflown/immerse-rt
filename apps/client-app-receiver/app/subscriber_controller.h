@@ -1,6 +1,7 @@
 #ifndef IMMERSE_RT_SUBSCRIBER_CONTROLLER_H
 #define IMMERSE_RT_SUBSCRIBER_CONTROLLER_H
 
+#include <QBindable>
 #include <QObject>
 #include <QQuickItem>
 
@@ -14,7 +15,13 @@ class SubscriberController : public QObject {
     QML_UNCREATABLE("Managed by C++ layer")
 
   public:
-    enum Status { None, RequestingToken, StartingStream, Playing, Failed };
+    enum Status {
+        None [[maybe_unused]],
+        RequestingToken,
+        StartingStream,
+        Playing,
+        Failed
+    };
 
     Q_ENUM(Status)
 

@@ -21,10 +21,27 @@ define_error_code!(
 );
 
 #[repr(C)]
+#[allow(dead_code)] // contructed by C/C++ code
+enum PeerRole {
+    Publisher,
+    Subscriber,
+}
+
+#[repr(C)]
 struct RoomOptions {
     room_id: *const ffi::c_char,
     identity: *const ffi::c_char,
     name: *const ffi::c_char,
+    role: PeerRole,
+}
+
+impl From<PeerRole> for crate::PeerRole {
+    fn from(value: PeerRole) -> Self {
+        match value {
+            PeerRole::Publisher => crate::PeerRole::Publisher,
+            PeerRole::Subscriber => crate::PeerRole::Subscriber,
+        }
+    }
 }
 
 impl TryFrom<RoomOptions> for crate::RoomOptions {
@@ -38,6 +55,7 @@ impl TryFrom<RoomOptions> for crate::RoomOptions {
                 Some(v) => Some(try_convert!(v).to_owned()),
                 None => None,
             },
+            role: value.role.into(),
         })
     }
 }

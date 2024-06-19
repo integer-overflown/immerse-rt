@@ -242,6 +242,10 @@ Item {
 
             property var controller: AppInstance.createController(AppInstance.PublisherView)
 
+            Component.onCompleted: {
+                controller.startPublishing(fileDialog.selectedFile)
+            }
+
             Component.onDestruction: {
                 console.log("Destroying")
                 AppInstance.releaseController(controller)
@@ -251,10 +255,33 @@ Item {
                 anchors.centerIn: parent
                 spacing: 16
 
-                Text {
-                    text: "Streaming..."
-                    color: "white"
-                    font.pointSize: 36
+                Column {
+                    Text {
+                        text: "Streaming..."
+                        color: "white"
+                        font.pointSize: 36
+                    }
+
+                    Text {
+                        function statusString(status) {
+                            switch (status) {
+                                case SubscriberController.None:
+                                    return "Standby"
+                                case SubscriberController.RequestingToken:
+                                    return "Requesting token..."
+                                case SubscriberController.StartingStream:
+                                    return "Starting stream..."
+                                case SubscriberController.Playing:
+                                    return "Playing"
+                                case SubscriberController.Failed:
+                                    return "Failed"
+                            }
+                        }
+
+                        text: statusString(controller.status)
+                        color: "grey"
+                        font.pointSize: 18
+                    }
                 }
 
                 Button {

@@ -10,6 +10,7 @@
 
 #include "bridge/irt.h"
 #include "constants.h"
+#include "exceptions.h"
 #include "utils.h"
 
 namespace app {
@@ -20,53 +21,17 @@ namespace logging {
 Q_LOGGING_CATEGORY(sub, "app.subscriber")
 }
 
-class RequestFailed : public std::runtime_error {
-  public:
-    explicit RequestFailed(irt::RequestErrorCode e)
-        : std::runtime_error(
-              std::format("Request failed with {}", int(e)).c_str()) {}
-};
-
-class FailedToReadHRIR : public std::runtime_error {
-  public:
-    FailedToReadHRIR() : std::runtime_error("Cannot read HRIR resource") {}
-};
-
-class CreateStreamFailed : public std::runtime_error {
-  public:
-    explicit CreateStreamFailed(irt::CreateSubscriberErrorCode e)
-        : std::runtime_error(
-              std::format("Cannot create stream: {}", int(e)).c_str()) {}
-};
-
-class SetupStreamFailed : public std::runtime_error {
-  public:
-    SetupStreamFailed() : std::runtime_error("Failed to setup stream") {}
-};
-
-class StartStreamFailed : public std::runtime_error {
-  public:
-    StartStreamFailed() : std::runtime_error("Failed to start stream") {}
-};
-
-QFuture<irt::RequestResult> request_token(const char *serverUrl,
-                                          irt::RoomOptions options) {
-    return QtConcurrent::run([serverUrl, options] {
-        return irt::request_token(serverUrl, options);
-    });
-}
-
 } // namespace
 
 void SubscriberController::connectToStream(QQuickItem *videoSink) {
     status_.setValue(RequestingToken);
 
-    app::request_token(constants::serverUrl,
-                       irt::RoomOptions{
-                           .room_id = "room#1",
-                           .identity = "sample-subscriber",
-                           .name = nullptr,
-                       })
+    app::utils::request_token(
+        constants::serverUrl,
+        irt::RoomOptions{.room_id = "room#1",
+                         .identity = "sample-subscriber",
+                         .name = nullptr,
+                         .role = irt::PeerRole::Subscriber})
         .then(this,
               [this, videoSink](irt::RequestResult result) {
                   utils::Defer _ =

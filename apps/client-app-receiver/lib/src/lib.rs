@@ -27,6 +27,7 @@ pub(crate) struct RoomOptions {
     room_id: String,
     identity: String,
     name: Option<String>,
+    role: PeerRole,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -47,7 +48,7 @@ pub(crate) fn request_token(
         name: room_options.name,
         identity: room_options.identity,
         room_id: room_options.room_id,
-        role: PeerRole::Subscriber,
+        role: room_options.role,
     })?;
 
     Ok(token)
