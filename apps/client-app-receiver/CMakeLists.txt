@@ -15,6 +15,14 @@ qt_add_executable(
         app/main.cpp
         res/qml.qrc
         app/qml_utils.h
+        app/app_instance.h
+        app/app_instance.cpp
+        app/publisher_controller.h
+        app/subscriber_controller.h
+        app/publisher_controller.cpp
+        app/subscriber_controller.cpp
+        app/constants.h
+        app/utils.h
 )
 
 set_target_properties(client-app-receiver
@@ -34,7 +42,10 @@ target_link_libraries(client-app-receiver PRIVATE
 
 qt_add_qml_module(client-app-receiver
         URI com.github.immerse_rt
-        SOURCES app/qml_utils.h
+        SOURCES
+        app/qml_utils.h
+        app/app_instance.h
+        app/app_instance.cpp
         RESOURCE_PREFIX /
         VERSION 1.0
 )

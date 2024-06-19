@@ -2,6 +2,8 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
+import com.github.immerse_rt
+
 ApplicationWindow {
     height: 480
     title: qsTr("immerse-rt")
@@ -20,13 +22,13 @@ ApplicationWindow {
         Item {
             id: root
 
-            function navigate(componentName) {
+            function navigate(componentName, properties) {
                 const component = Qt.createComponent(componentName);
                 if (component.status !== Component.Ready) {
                     console.error(`Failed to load view: ${component.errorString()}`);
                     return;
                 }
-                stackView.push(component.createObject(stackView));
+                stackView.push(component.createObject(stackView, properties));
             }
 
             ColumnLayout {
@@ -47,7 +49,9 @@ ApplicationWindow {
                     text: qsTr("Join a room")
 
                     onClicked: {
-                        root.navigate("SubscriberView.qml");
+                        root.navigate("SubscriberView.qml", {
+                            controller: AppInstance.createController(AppInstance.SubscriberView)
+                        });
                     }
                 }
             }

@@ -240,6 +240,13 @@ Item {
         Item {
             readonly property int order: 2
 
+            property var controller: AppInstance.createController(AppInstance.PublisherView)
+
+            Component.onDestruction: {
+                console.log("Destroying")
+                AppInstance.releaseController(controller)
+            }
+
             ColumnLayout {
                 anchors.centerIn: parent
                 spacing: 16
